@@ -215,6 +215,8 @@ codellama/
 **Goal:** Production-quality UX, parallel execution, persistent store.
 
 ### Implemented in this pass
+- `Services/MCP/MCPHost.swift` — added `TaskGroup`-based parallel tool dispatch for independent calls
+- `Services/Agent/PlanExecutor.swift` — batches likely read-only steps across different MCP servers while preserving overall plan order
 - `Services/MCP/MCPHost.swift` — added `MCPServerRuntimeState`, tracked lifecycle per server, and wired restart/enable/disable/remove flows
 - `Services/MCP/MCPProcessManager.swift` — added termination callbacks and unexpected-exit detection
 - `Services/MCP/MCPServerConnection.swift` — records connection failures and unexpected process termination state
@@ -232,7 +234,6 @@ codellama/
 - ✅ Request cancellation for agent plan execution
 
 ### Remaining Phase 4 work
-- Parallel tool execution in `MCPHost` via `TaskGroup`
 - SQLite-backed persistent `VectorStore`
 - Cmd+K command palette
 - Drag-and-drop files into chat context
