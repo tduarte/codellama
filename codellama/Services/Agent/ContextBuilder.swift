@@ -77,13 +77,17 @@ struct ContextBuilder {
 
         if let vectorStore {
             map.indexedChunkCount = await vectorStore.indexedChunkCount()
+            let allowedServerNames = Set(map.resources.map { $0.serverName }).union(["local"])
 
             if let embeddingService,
                let embeddingModel,
                !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 do {
                     let promptEmbedding = try await embeddingService.embedding(for: prompt, model: embeddingModel)
-                    let matches = await vectorStore.search(promptEmbedding)
+                    let matches = await vectorStore.search(
+                        promptEmbedding,
+                        allowedServerNames: allowedServerNames
+                    )
                     map.relevantContext = matches.map { match in
                         let snippet = match.entry.text.replacingOccurrences(of: "\n", with: " ")
                         let preview = snippet.count > 280 ? String(snippet.prefix(280)) + "…" : snippet

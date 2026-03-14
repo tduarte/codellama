@@ -215,6 +215,10 @@ codellama/
 **Goal:** Production-quality UX, parallel execution, persistent store.
 
 ### Implemented in this pass
+- `Services/Embedding/VectorStore.swift` — replaced the in-memory store with a SQLite-backed persistent store plus fallback in-memory mode
+- `Services/Embedding/ChunkIndexer.swift` — skips re-embedding unchanged resources by checking persisted fingerprints before chunk generation
+- `Services/Embedding/ContextIndexManager.swift` — prunes deleted local files while preserving unchanged indexed resources across launches
+- `Services/Agent/ContextBuilder.swift` — filters persisted context matches to currently available MCP servers plus local indexed files
 - `Services/MCP/MCPHost.swift` — added `TaskGroup`-based parallel tool dispatch for independent calls
 - `Services/Agent/PlanExecutor.swift` — batches likely read-only steps across different MCP servers while preserving overall plan order
 - `Services/MCP/MCPHost.swift` — added `MCPServerRuntimeState`, tracked lifecycle per server, and wired restart/enable/disable/remove flows
@@ -234,7 +238,6 @@ codellama/
 - ✅ Request cancellation for agent plan execution
 
 ### Remaining Phase 4 work
-- SQLite-backed persistent `VectorStore`
 - Cmd+K command palette
 - Drag-and-drop files into chat context
 - Debounced UI updates beyond the current cancellation/polish pass

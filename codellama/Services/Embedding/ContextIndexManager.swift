@@ -18,7 +18,7 @@ final class ContextIndexManager {
     private(set) var statusMessage: String = "No folders attached."
     private(set) var lastError: String?
 
-    var vectorStore = VectorStore()
+    let vectorStore: VectorStore
 
     private let fileManager = FileManager.default
     private let supportedExtensions: Set<String> = [
@@ -28,7 +28,8 @@ final class ContextIndexManager {
     ]
     private let maxFileSizeBytes = 512_000
 
-    init() {
+    init(vectorStore: VectorStore = VectorStore()) {
+        self.vectorStore = vectorStore
         self.attachedFolders = Defaults[.indexedFolderPaths]
         if !attachedFolders.isEmpty {
             self.statusMessage = "Ready to index \(attachedFolders.count) folder(s)."
@@ -51,8 +52,6 @@ final class ContextIndexManager {
 
     func reindexLocalFolders(using ollamaClient: OllamaClient?, embeddingModel: String) async {
         guard let ollamaClient else {
-            indexedFileCount = 0
-            vectorStore = VectorStore()
             statusMessage = attachedFolders.isEmpty
                 ? "No folders attached."
                 : "Ollama is unavailable. Start Ollama before indexing."
@@ -62,7 +61,7 @@ final class ContextIndexManager {
 
         guard !attachedFolders.isEmpty else {
             indexedFileCount = 0
-            vectorStore = VectorStore()
+            try? await vectorStore.removeResources(serverName: "local")
             statusMessage = "No folders attached."
             lastError = nil
             return
@@ -72,18 +71,26 @@ final class ContextIndexManager {
         lastError = nil
         statusMessage = "Indexing \(attachedFolders.count) folder(s)…"
         indexedFileCount = 0
-        vectorStore = VectorStore()
 
         let embeddingService = EmbeddingService(ollamaClient: ollamaClient)
         let chunkIndexer = ChunkIndexer(embeddingService: embeddingService, vectorStore: vectorStore)
 
-        var totalIndexedFiles = 0
-        var failures: [String] = []
+        var filesByFolder: [(folderURL: URL, fileURLs: [URL])] = []
+        var discoveredLocalURIs: Set<String> = []
 
         for folderPath in attachedFolders {
             let folderURL = URL(fileURLWithPath: folderPath, isDirectory: true)
             let fileURLs = discoverIndexableFiles(in: folderURL)
+            filesByFolder.append((folderURL: folderURL, fileURLs: fileURLs))
+            discoveredLocalURIs.formUnion(fileURLs.map(\.absoluteString))
+        }
 
+        try? await vectorStore.pruneResources(serverName: "local", keepingURIs: discoveredLocalURIs)
+
+        var totalIndexedFiles = 0
+        var failures: [String] = []
+
+        for (folderURL, fileURLs) in filesByFolder {
             for fileURL in fileURLs {
                 do {
                     let content = try readTextFile(at: fileURL)
