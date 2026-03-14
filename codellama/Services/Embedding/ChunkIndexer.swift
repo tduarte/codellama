@@ -38,6 +38,11 @@ struct ChunkIndexer {
         let normalizedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedText.isEmpty else { return }
 
+        let resourceFingerprint = fingerprint(for: normalizedText)
+        if await vectorStore.resourceFingerprint(serverName: serverName, uri: uri) == resourceFingerprint {
+            return
+        }
+
         let chunks = split(text: normalizedText)
         guard !chunks.isEmpty else { return }
 
@@ -52,11 +57,11 @@ struct ChunkIndexer {
 
         guard !indexedChunks.isEmpty else { return }
 
-        await vectorStore.upsertResource(
+        try await vectorStore.upsertResource(
             serverName: serverName,
             uri: uri,
             description: description,
-            resourceFingerprint: fingerprint(for: normalizedText),
+            resourceFingerprint: resourceFingerprint,
             chunks: indexedChunks
         )
     }
