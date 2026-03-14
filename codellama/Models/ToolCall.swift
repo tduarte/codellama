@@ -23,4 +23,29 @@ struct ToolCall: Codable, Identifiable, Hashable, Sendable {
 
     /// The arguments to pass to the tool, keyed by parameter name.
     let arguments: [String: JSONValue]
+
+    /// Best-effort heuristic used to identify discovery-style MCP calls that
+    /// can be safely batched across different servers.
+    var isLikelyReadOnly: Bool {
+        let normalizedName = toolName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        let readOnlyPrefixes = [
+            "get",
+            "list",
+            "read",
+            "search",
+            "find",
+            "fetch",
+            "query",
+            "show",
+            "lookup",
+            "stat"
+        ]
+
+        return readOnlyPrefixes.contains { prefix in
+            normalizedName == prefix || normalizedName.hasPrefix(prefix + "_")
+        }
+    }
 }

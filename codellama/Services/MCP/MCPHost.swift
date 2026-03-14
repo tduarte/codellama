@@ -267,11 +267,9 @@ final class MCPHost {
     /// Route a `ToolCall` to the correct server connection and execute it.
     func callTool(_ toolCall: ToolCall) async throws -> ToolResult {
         guard let connection = connections[toolCall.serverName] else {
-            return ToolResult(
-                id: UUID().uuidString,
-                toolCallId: toolCall.id,
-                content: "Server '\(toolCall.serverName)' is not connected.",
-                isError: true
+            return makeErrorResult(
+                for: toolCall,
+                message: "Server '\(toolCall.serverName)' is not connected."
             )
         }
 
@@ -291,6 +289,37 @@ final class MCPHost {
             isError: result.isError
         )
         return result
+    }
+
+    /// Execute multiple tool calls concurrently. Intended for independent,
+    /// read-only work across different MCP servers.
+    func callToolsInParallel(_ toolCalls: [ToolCall]) async -> [ToolResult] {
+        guard !toolCalls.isEmpty else { return [] }
+
+        let indexedToolCalls = Array(toolCalls.enumerated())
+
+        return await withTaskGroup(of: (Int, ToolResult).self, returning: [ToolResult].self) { group in
+            for (index, toolCall) in indexedToolCalls {
+                group.addTask { @MainActor in
+                    do {
+                        let result = try await self.callTool(toolCall)
+                        return (index, result)
+                    } catch {
+                        return (
+                            index,
+                            self.makeErrorResult(for: toolCall, message: error.localizedDescription)
+                        )
+                    }
+                }
+            }
+
+            var orderedResults = Array<ToolResult?>(repeating: nil, count: indexedToolCalls.count)
+            for await (index, result) in group {
+                orderedResults[index] = result
+            }
+
+            return orderedResults.compactMap { $0 }
+        }
     }
 
     /// Find which server provides a given tool name.
@@ -394,5 +423,14 @@ final class MCPHost {
             guard !Task.isCancelled else { return }
             await self?.restart(serverName: serverName)
         }
+    }
+
+    private func makeErrorResult(for toolCall: ToolCall, message: String) -> ToolResult {
+        ToolResult(
+            id: UUID().uuidString,
+            toolCallId: toolCall.id,
+            content: message,
+            isError: true
+        )
     }
 }
