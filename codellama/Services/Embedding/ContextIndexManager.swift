@@ -90,6 +90,11 @@ final class ContextIndexManager {
         var totalIndexedFiles = 0
         var failures: [String] = []
 
+        // Throttle status-message updates so the Settings UI doesn't re-render on
+        // every single file; flush at most once every 16 files.
+        let progressFlushInterval = 16
+        var filesSinceLastFlush = 0
+
         for (folderURL, fileURLs) in filesByFolder {
             for fileURL in fileURLs {
                 do {
@@ -104,6 +109,13 @@ final class ContextIndexManager {
                         model: embeddingModel
                     )
                     totalIndexedFiles += 1
+                    filesSinceLastFlush += 1
+
+                    if filesSinceLastFlush >= progressFlushInterval {
+                        indexedFileCount = totalIndexedFiles
+                        statusMessage = "Indexing… \(totalIndexedFiles) file(s) processed"
+                        filesSinceLastFlush = 0
+                    }
                 } catch {
                     failures.append("\(fileURL.path): \(error.localizedDescription)")
                 }

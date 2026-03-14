@@ -248,14 +248,32 @@ final class ChatViewModel {
                     stream: true
                 )
 
+                // Accumulate tokens between flushes so SwiftUI re-renders at most every
+                // 50 ms instead of on every individual token.
+                var pendingContent = ""
+                var lastFlushTime = ContinuousClock.now
+                let flushInterval: Duration = .milliseconds(50)
+
                 for try await chunk in await client.chatStream(request: request) {
                     if Task.isCancelled { break }
 
                     if let content = chunk.message?.content {
-                        assistantMessage.content += content
+                        pendingContent += content
+                    }
+
+                    let now = ContinuousClock.now
+                    if now - lastFlushTime >= flushInterval, !pendingContent.isEmpty {
+                        assistantMessage.content += pendingContent
+                        pendingContent = ""
+                        lastFlushTime = now
                     }
 
                     if chunk.done {
+                        // Flush the remainder of the buffer at stream end.
+                        if !pendingContent.isEmpty {
+                            assistantMessage.content += pendingContent
+                            pendingContent = ""
+                        }
                         conversation.modifiedAt = .now
 
                         // Auto-generate title from first exchange
@@ -263,6 +281,11 @@ final class ChatViewModel {
                             generateTitle(client: client, conversation: conversation)
                         }
                     }
+                }
+
+                // Flush any tokens accumulated after the last timed flush (cancellation path).
+                if !pendingContent.isEmpty {
+                    assistantMessage.content += pendingContent
                 }
 
                 // Handle cancellation: mark the response accordingly

@@ -1,14 +1,14 @@
 # CodeLlama — Native macOS Agentic IDE
 ## Progress Tracker
 
-_Last updated: 2026-03-14 15:42:00 PDT_
+_Last updated: 2026-03-14 PDT_
 
 | Phase | Status | Commit | Files |
 |---|---|---|---|
 | Phase 1: Basic Chat + Ollama | ✅ **DONE** | `2d97a2c` | 24 files, 2031 insertions |
 | Phase 2: MCP Integration + Agentic Loop | ✅ **DONE** | `5430746` | +16 files |
 | Phase 3: Skills Engine + RAG | ✅ **DONE** | uncommitted local changes | +8 Swift files, Textual added |
-| Phase 4: Multi-Server Orchestration + Polish | 🟡 IN PROGRESS | uncommitted local changes | MCP health/restart + search/export + task cancellation |
+| Phase 4: Multi-Server Orchestration + Polish | ✅ **DONE** | uncommitted local changes | MCP health/restart + search/export + task cancellation + debounced UI |
 
 ---
 
@@ -237,14 +237,13 @@ codellama/
 - `Services/Agent/PlanExecutor.swift` — cancellation-aware execution with skipped remaining steps
 - `Views/Agent/PlanTimelineView.swift` — visible planning/executing/completed/cancelled states instead of approval-only UI
 
-### Milestone status
+### Milestone status (complete)
 - ✅ Auto-restart crashed MCP servers in `MCPProcessManager`
 - ✅ Server health status indicators in sidebar/settings
 - ✅ Conversation search + Markdown export
 - ✅ Request cancellation for agent plan execution
-
-### Remaining Phase 4 work
-- Debounced UI updates beyond the current cancellation/polish pass
+- ✅ Debounced streaming token updates in `ChatViewModel` (50 ms flush interval)
+- ✅ Debounced indexing progress in `ContextIndexManager` (every 16 files)
 
 ---
 
