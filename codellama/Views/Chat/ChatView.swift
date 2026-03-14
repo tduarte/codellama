@@ -13,6 +13,7 @@ struct ChatView: View {
     @Bindable var conversation: Conversation
     @Bindable var chatViewModel: ChatViewModel
     @State private var isTargetingFileDrop = false
+    @State private var didInitialScroll = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -67,14 +68,24 @@ struct ChatView: View {
                 }
                 .padding()
             }
+            .defaultScrollAnchor(.bottom)
+            .id(conversation.id)
             .onChange(of: sortedMessages.last?.content) {
-                scrollToBottom(proxy: proxy)
+                guard didInitialScroll else { return }
+                scrollToBottom(proxy: proxy, animated: true)
             }
             .onChange(of: sortedMessages.count) {
-                scrollToBottom(proxy: proxy)
+                guard didInitialScroll else { return }
+                scrollToBottom(proxy: proxy, animated: true)
+            }
+            .onChange(of: conversation.id) {
+                didInitialScroll = false
+                scrollToBottom(proxy: proxy, animated: false)
+                didInitialScroll = true
             }
             .onAppear {
-                scrollToBottom(proxy: proxy)
+                scrollToBottom(proxy: proxy, animated: false)
+                didInitialScroll = true
             }
         }
     }
@@ -133,8 +144,14 @@ struct ChatView: View {
         appState.availableModels.contains { $0.name == conversation.model }
     }
 
-    private func scrollToBottom(proxy: ScrollViewProxy) {
+    private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
         guard let lastMessage = sortedMessages.last else { return }
+
+        guard animated else {
+            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+            return
+        }
+
         withAnimation(.easeOut(duration: 0.2)) {
             proxy.scrollTo(lastMessage.id, anchor: .bottom)
         }
