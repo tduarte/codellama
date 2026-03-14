@@ -8,10 +8,10 @@
 import SwiftUI
 
 struct ChatView: View {
-    let conversation: Conversation
-
-    @Bindable var chatViewModel: ChatViewModel
     @Environment(AppState.self) private var appState
+
+    @Bindable var conversation: Conversation
+    @Bindable var chatViewModel: ChatViewModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,6 +21,23 @@ struct ChatView: View {
         }
         .navigationTitle(conversation.title)
         .navigationSubtitle(conversation.model)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Picker("Model", selection: modelSelection) {
+                    if !isCurrentModelAvailable {
+                        Text("\(conversation.model) (Unavailable)")
+                            .tag(conversation.model)
+                    }
+
+                    ForEach(appState.availableModels) { model in
+                        Text(model.name).tag(model.name)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(minWidth: 180)
+                .disabled(chatViewModel.isGenerating)
+            }
+        }
     }
 
     // MARK: - Message List
@@ -68,6 +85,20 @@ struct ChatView: View {
 
     private var sortedMessages: [ChatMessage] {
         conversation.messages.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private var modelSelection: Binding<String> {
+        Binding(
+            get: { conversation.model },
+            set: { newValue in
+                chatViewModel.updateModel(newValue, for: conversation)
+                appState.selectedModel = newValue
+            }
+        )
+    }
+
+    private var isCurrentModelAvailable: Bool {
+        appState.availableModels.contains { $0.name == conversation.model }
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy) {

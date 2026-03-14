@@ -12,8 +12,6 @@ struct SidebarView: View {
 
     @Bindable var chatViewModel: ChatViewModel
 
-    @State private var selectedModelName: String = ""
-
     var body: some View {
         List(selection: $chatViewModel.selectedConversation) {
             ForEach(chatViewModel.conversations) { conversation in
@@ -45,22 +43,7 @@ struct SidebarView: View {
                 .keyboardShortcut("n", modifiers: .command)
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            Picker("Model", selection: $selectedModelName) {
-                ForEach(appState.availableModels) { model in
-                    Text(model.name).tag(model.name)
-                }
-            }
-            .pickerStyle(.menu)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .labelsHidden()
-            .onChange(of: selectedModelName) { _, newValue in
-                appState.selectedModel = newValue
-            }
-        }
         .onAppear {
-            selectedModelName = appState.selectedModel
             chatViewModel.fetchConversations()
         }
     }
