@@ -24,8 +24,7 @@ final class AgentLoop {
     let ollamaClient: OllamaClient
     let mcpHost: MCPHost
     let modelContext: ModelContext
-    let embeddingService: EmbeddingService
-    let vectorStore: VectorStore
+    let contextIndexManager: ContextIndexManager
 
     // MARK: - State
 
@@ -34,12 +33,16 @@ final class AgentLoop {
 
     // MARK: - Init
 
-    init(ollamaClient: OllamaClient, mcpHost: MCPHost, modelContext: ModelContext) {
+    init(
+        ollamaClient: OllamaClient,
+        mcpHost: MCPHost,
+        modelContext: ModelContext,
+        contextIndexManager: ContextIndexManager
+    ) {
         self.ollamaClient = ollamaClient
         self.mcpHost = mcpHost
         self.modelContext = modelContext
-        self.embeddingService = EmbeddingService(ollamaClient: ollamaClient)
-        self.vectorStore = VectorStore()
+        self.contextIndexManager = contextIndexManager
     }
 
     // MARK: - Run
@@ -76,8 +79,8 @@ final class AgentLoop {
         // Phase 1: Gather context from MCP resources
         let contextBuilder = ContextBuilder(
             mcpHost: mcpHost,
-            embeddingService: embeddingService,
-            vectorStore: vectorStore
+            embeddingService: EmbeddingService(ollamaClient: ollamaClient),
+            vectorStore: contextIndexManager.vectorStore
         )
         let contextMap = await contextBuilder.buildContextMap(
             for: prompt,
