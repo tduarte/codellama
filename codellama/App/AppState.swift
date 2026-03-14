@@ -9,6 +9,7 @@ final class AppState {
     // MARK: - MCP
 
     let mcpHost = MCPHost()
+    let contextIndexManager = ContextIndexManager()
     enum Status: Equatable {
         case checking
         case ollamaNotFound
@@ -79,6 +80,13 @@ final class AppState {
                     try? await mcpHost.connect(config: config)
                 }
             }
+        }
+
+        Task {
+            await contextIndexManager.reindexLocalFolders(
+                using: client,
+                embeddingModel: Defaults[.embeddingModel]
+            )
         }
     }
 

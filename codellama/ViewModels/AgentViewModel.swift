@@ -30,11 +30,17 @@ final class AgentViewModel {
 
     // MARK: - Init
 
-    init(ollamaClient: OllamaClient, mcpHost: MCPHost, modelContext: ModelContext) {
+    init(
+        ollamaClient: OllamaClient,
+        mcpHost: MCPHost,
+        modelContext: ModelContext,
+        contextIndexManager: ContextIndexManager
+    ) {
         self.agentLoop = AgentLoop(
             ollamaClient: ollamaClient,
             mcpHost: mcpHost,
-            modelContext: modelContext
+            modelContext: modelContext,
+            contextIndexManager: contextIndexManager
         )
     }
 

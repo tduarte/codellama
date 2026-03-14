@@ -35,7 +35,8 @@ struct codellamaApp: App {
                 agentViewModel: AgentViewModel(
                     ollamaClient: appState.ollamaClient ?? OllamaClient(),
                     mcpHost: appState.mcpHost,
-                    modelContext: sharedModelContainer.mainContext
+                    modelContext: sharedModelContainer.mainContext,
+                    contextIndexManager: appState.contextIndexManager
                 ),
                 skillViewModel: SkillViewModel(modelContext: sharedModelContainer.mainContext)
             )

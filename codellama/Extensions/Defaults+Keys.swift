@@ -19,6 +19,9 @@ extension Defaults.Keys {
     /// The embedding model identifier used for local RAG indexing.
     static let embeddingModel = Key<String>("embeddingModel", default: "nomic-embed-text")
 
+    /// User-attached folders that should be indexed into the local vector store.
+    static let indexedFolderPaths = Key<[String]>("indexedFolderPaths", default: [])
+
     /// The system prompt prepended to every new conversation.
     static let systemPrompt = Key<String>("systemPrompt", default: "You are a helpful coding assistant.")
 
