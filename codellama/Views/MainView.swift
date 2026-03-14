@@ -12,6 +12,9 @@ struct MainView: View {
 
     var chatViewModel: ChatViewModel
     var agentViewModel: AgentViewModel
+    var skillViewModel: SkillViewModel
+
+    @State private var showSkills = false
 
     var body: some View {
         switch appState.status {
@@ -83,6 +86,15 @@ struct MainView: View {
                     )
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showSkills = true
+                    } label: {
+                        Label("Skills", systemImage: "wand.and.stars")
+                    }
+                }
+            }
             .sheet(isPresented: Binding(
                 get: { agentViewModel.showPlanTimeline },
                 set: { if !$0 { agentViewModel.cancel() } }
@@ -95,6 +107,11 @@ struct MainView: View {
                     )
                     .frame(minWidth: 500, minHeight: 400)
                 }
+            }
+            .sheet(isPresented: $showSkills) {
+                SkillListView(skillViewModel: skillViewModel)
+                    .environment(appState)
+                    .frame(minWidth: 980, minHeight: 680)
             }
         }
     }

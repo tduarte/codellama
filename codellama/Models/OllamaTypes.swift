@@ -82,6 +82,73 @@ enum JSONValue: Codable, Hashable, Sendable {
     }
 }
 
+extension JSONValue {
+    /// Convert to a Foundation JSON object for serialization or editing.
+    func foundationObject() -> Any {
+        switch self {
+        case .string(let value):
+            return value
+        case .number(let value):
+            return value
+        case .bool(let value):
+            return value
+        case .object(let value):
+            return value.mapValues { $0.foundationObject() }
+        case .array(let value):
+            return value.map { $0.foundationObject() }
+        case .null:
+            return NSNull()
+        }
+    }
+
+    /// Construct a JSONValue from a Foundation JSON object tree.
+    static func fromFoundationObject(_ object: Any) throws -> JSONValue {
+        switch object {
+        case let value as String:
+            return .string(value)
+        case let value as Bool:
+            return .bool(value)
+        case let value as NSNumber:
+            if CFGetTypeID(value) == CFBooleanGetTypeID() {
+                return .bool(value.boolValue)
+            }
+            return .number(value.doubleValue)
+        case let value as [Any]:
+            return .array(try value.map(fromFoundationObject))
+        case let value as [String: Any]:
+            return .object(try value.mapValues(fromFoundationObject))
+        case is NSNull:
+            return .null
+        default:
+            throw JSONValueConversionError.unsupportedType(String(describing: type(of: object)))
+        }
+    }
+
+    func prettyPrintedJSONString() -> String {
+        guard JSONSerialization.isValidJSONObject(foundationObject()),
+              let data = try? JSONSerialization.data(
+                withJSONObject: foundationObject(),
+                options: [.prettyPrinted, .sortedKeys]
+              ),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+
+        return string
+    }
+}
+
+enum JSONValueConversionError: LocalizedError {
+    case unsupportedType(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .unsupportedType(let typeName):
+            return "Unsupported JSON value type: \(typeName)"
+        }
+    }
+}
+
 // MARK: - JSONValue Convenience Initializers
 
 extension JSONValue: ExpressibleByStringLiteral {
@@ -327,4 +394,24 @@ struct OllamaGenerateChunk: Codable, Sendable {
     let model: String
     let response: String
     let done: Bool
+}
+
+// MARK: - Ollama Embeddings
+
+/// The request body sent to `POST /api/embeddings`.
+struct OllamaEmbeddingsRequest: Codable, Sendable {
+    let model: String
+    let prompt: String
+    let options: OllamaOptions?
+
+    init(model: String, prompt: String, options: OllamaOptions? = nil) {
+        self.model = model
+        self.prompt = prompt
+        self.options = options
+    }
+}
+
+/// The response body returned by `POST /api/embeddings`.
+struct OllamaEmbeddingsResponse: Codable, Sendable {
+    let embedding: [Double]
 }

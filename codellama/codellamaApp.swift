@@ -34,8 +34,10 @@ struct codellamaApp: App {
                 chatViewModel: ChatViewModel(modelContext: sharedModelContainer.mainContext),
                 agentViewModel: AgentViewModel(
                     ollamaClient: appState.ollamaClient ?? OllamaClient(),
-                    mcpHost: appState.mcpHost
-                )
+                    mcpHost: appState.mcpHost,
+                    modelContext: sharedModelContainer.mainContext
+                ),
+                skillViewModel: SkillViewModel(modelContext: sharedModelContainer.mainContext)
             )
             .environment(appState)
             .task { await appState.startup(modelContext: sharedModelContainer.mainContext) }
@@ -44,7 +46,7 @@ struct codellamaApp: App {
         .modelContainer(sharedModelContainer)
 
         Settings {
-            SettingsView()
+            SettingsView(skillViewModel: SkillViewModel(modelContext: sharedModelContainer.mainContext))
                 .environment(appState)
         }
     }

@@ -16,6 +16,9 @@ extension Defaults.Keys {
     /// The default model identifier used for new conversations.
     static let defaultModel = Key<String>("defaultModel", default: "llama3.1:8b")
 
+    /// The embedding model identifier used for local RAG indexing.
+    static let embeddingModel = Key<String>("embeddingModel", default: "nomic-embed-text")
+
     /// The system prompt prepended to every new conversation.
     static let systemPrompt = Key<String>("systemPrompt", default: "You are a helpful coding assistant.")
 

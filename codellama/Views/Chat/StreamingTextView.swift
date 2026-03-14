@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Textual
 
 struct StreamingTextView: View {
     let text: String
@@ -14,9 +15,10 @@ struct StreamingTextView: View {
     @State private var cursorVisible: Bool = true
 
     var body: some View {
-        HStack(alignment: .lastTextBaseline, spacing: 0) {
-            Text(LocalizedStringKey(text))
-                .textSelection(.enabled)
+        VStack(alignment: .leading, spacing: 6) {
+            StructuredText(markdown: text)
+                .textual.structuredTextStyle(.gitHub)
+                .textual.textSelection(.enabled)
 
             if isStreaming {
                 Text("|")
@@ -26,8 +28,9 @@ struct StreamingTextView: View {
                         withAnimation(.easeInOut(duration: 0.5).repeatForever()) {
                             cursorVisible.toggle()
                         }
-                    }
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

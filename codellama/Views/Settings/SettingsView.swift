@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Bindable var skillViewModel: SkillViewModel
+
     var body: some View {
         TabView {
             OllamaSettingsView()
@@ -19,7 +21,12 @@ struct SettingsView: View {
                 .tabItem {
                     Label("MCP Servers", systemImage: "server.rack")
                 }
+
+            SkillListView(skillViewModel: skillViewModel)
+                .tabItem {
+                    Label("Skills", systemImage: "wand.and.stars")
+                }
         }
-        .frame(width: 500, height: 420)
+        .frame(width: 980, height: 680)
     }
 }

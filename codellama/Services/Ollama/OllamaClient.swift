@@ -221,6 +221,30 @@ actor OllamaClient {
         }
     }
 
+    // MARK: - Embeddings
+
+    /// Generate a single embedding vector via `POST /api/embeddings`.
+    func embed(request embeddingsRequest: OllamaEmbeddingsRequest) async throws -> OllamaEmbeddingsResponse {
+        let urlRequest = try buildPOSTRequest(path: "api/embeddings", body: embeddingsRequest)
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: urlRequest)
+        } catch {
+            throw OllamaError.networkError(error)
+        }
+
+        try validateHTTPResponse(response)
+
+        do {
+            return try decoder.decode(OllamaEmbeddingsResponse.self, from: data)
+        } catch {
+            let preview = String(data: data.prefix(500), encoding: .utf8) ?? "<non-utf8>"
+            throw OllamaError.decodingError(error, responsePreview: preview)
+        }
+    }
+
     // MARK: - Private Helpers
 
     private func buildPOSTRequest<Body: Encodable>(path: String, body: Body) throws -> URLRequest {
