@@ -18,6 +18,12 @@ xcodebuild -project codellama.xcodeproj -scheme codellama \
 xcodebuild clean -project codellama.xcodeproj -scheme codellama
 ```
 
+**Worktree workflow:** After completing any task in a git worktree, always open the worktree's project in Xcode so the user can inspect and run it:
+
+```bash
+open <worktree-path>/codellama.xcodeproj
+```
+
 Open `codellama.xcodeproj` in Xcode and press **Cmd+R** to build and run.
 
 **Requirements:**

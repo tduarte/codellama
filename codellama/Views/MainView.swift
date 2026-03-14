@@ -61,6 +61,11 @@ struct MainView: View {
                     Task { await appState.startup() }
                 }
                 .buttonStyle(.borderedProminent)
+
+                Button("Copy Error") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(message, forType: .string)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 

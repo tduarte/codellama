@@ -17,6 +17,7 @@ struct codellamaApp: App {
             Conversation.self,
             ChatMessage.self,
             MCPServerConfig.self,
+            Skill.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

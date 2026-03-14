@@ -5,7 +5,7 @@ import Foundation
 enum OllamaError: LocalizedError {
     case serverUnreachable
     case invalidResponse(statusCode: Int)
-    case decodingError(Error)
+    case decodingError(Error, responsePreview: String = "")
     case networkError(Error)
 
     var errorDescription: String? {
@@ -14,8 +14,9 @@ enum OllamaError: LocalizedError {
             return "Cannot connect to the Ollama server. Make sure Ollama is running."
         case .invalidResponse(let statusCode):
             return "Unexpected response from Ollama (HTTP \(statusCode))."
-        case .decodingError(let error):
-            return "Failed to parse Ollama response: \(error.localizedDescription)"
+        case .decodingError(let error, let preview):
+            let base = "Failed to parse Ollama response: \(error.localizedDescription)"
+            return preview.isEmpty ? base : "\(base)\n\nReceived: \(preview)"
         case .networkError(let error):
             return error.localizedDescription
         }
@@ -40,7 +41,6 @@ actor OllamaClient {
         self.session = URLSession(configuration: configuration)
 
         self.decoder = JSONDecoder()
-        self.decoder.keyDecodingStrategy = .convertFromSnakeCase
 
         self.encoder = JSONEncoder()
         self.encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -66,7 +66,8 @@ actor OllamaClient {
     /// List locally available models (GET /api/tags).
     func listModels() async throws -> OllamaModelsResponse {
         let url = baseURL.appendingPathComponent("api/tags")
-        let request = URLRequest(url: url)
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
 
         let data: Data
         let response: URLResponse
@@ -81,7 +82,8 @@ actor OllamaClient {
         do {
             return try decoder.decode(OllamaModelsResponse.self, from: data)
         } catch {
-            throw OllamaError.decodingError(error)
+            let preview = String(data: data.prefix(500), encoding: .utf8) ?? "<non-utf8>"
+            throw OllamaError.decodingError(error, responsePreview: preview)
         }
     }
 
