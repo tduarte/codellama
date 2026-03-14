@@ -26,6 +26,13 @@ struct PlanExecutor {
         plan.status = .executing
 
         for index in plan.steps.indices {
+            if Task.isCancelled {
+                cancelRemainingSteps(in: &plan, from: index)
+                let cancelledPlan = plan
+                await onStepUpdate(cancelledPlan)
+                return
+            }
+
             // Mark step as running
             plan.steps[index].status = .running
             plan.steps[index].startedAt = .now
@@ -61,5 +68,13 @@ struct PlanExecutor {
 
         let finalPlan = plan
         await onStepUpdate(finalPlan)
+    }
+
+    private func cancelRemainingSteps(in plan: inout ExecutionPlan, from index: Int) {
+        for remainingIndex in index..<plan.steps.count where plan.steps[remainingIndex].status == .pending {
+            plan.steps[remainingIndex].status = .skipped
+            plan.steps[remainingIndex].completedAt = .now
+        }
+        plan.status = .cancelled
     }
 }

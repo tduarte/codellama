@@ -25,8 +25,8 @@ final class AgentViewModel {
     var currentTask: AgentTask? { agentLoop.currentTask }
     var isRunning: Bool { agentLoop.isRunning }
 
-    /// `true` when the plan has been generated and is awaiting user approval.
-    var showPlanTimeline: Bool { currentTask?.phase == .awaitingApproval }
+    /// `true` while there is an active task to review, execute, or dismiss.
+    var showPlanTimeline: Bool { currentTask != nil }
 
     // MARK: - Init
 
@@ -59,5 +59,9 @@ final class AgentViewModel {
     /// Cancel and discard the current plan.
     func cancel() {
         agentLoop.cancelPlan()
+    }
+
+    func dismissTask() {
+        agentLoop.dismissTask()
     }
 }

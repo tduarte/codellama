@@ -14,26 +14,56 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $chatViewModel.selectedConversation) {
-            ForEach(chatViewModel.conversations) { conversation in
-                ConversationListItem(conversation: conversation)
-                    .tag(conversation)
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            chatViewModel.deleteConversation(conversation)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+            if !appState.mcpHost.sortedServerStates.isEmpty {
+                Section("Servers") {
+                    ForEach(appState.mcpHost.sortedServerStates) { state in
+                        serverRow(state)
                     }
+                }
             }
-            .onDelete { indexSet in
-                for index in indexSet {
-                    chatViewModel.deleteConversation(chatViewModel.conversations[index])
+
+            Section(chatViewModel.searchText.isEmpty ? "Conversations" : "Results") {
+                ForEach(chatViewModel.filteredConversations) { conversation in
+                    ConversationListItem(
+                        conversation: conversation,
+                        isSearchResult: !chatViewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                        .tag(conversation)
+                        .contextMenu {
+                            Button {
+                                chatViewModel.exportConversation(conversation)
+                            } label: {
+                                Label("Export Markdown", systemImage: "square.and.arrow.up")
+                            }
+
+                            Button(role: .destructive) {
+                                chatViewModel.deleteConversation(conversation)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                }
+                .onDelete { indexSet in
+                    for index in indexSet {
+                        chatViewModel.deleteConversation(chatViewModel.filteredConversations[index])
+                    }
                 }
             }
         }
         .listStyle(.sidebar)
+        .searchable(text: $chatViewModel.searchText, prompt: "Search conversations")
         .navigationTitle("Conversations")
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                if let selectedConversation = chatViewModel.selectedConversation {
+                    Button {
+                        chatViewModel.exportConversation(selectedConversation)
+                    } label: {
+                        Label("Export Conversation", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     chatViewModel.createConversation(model: appState.selectedModel)
@@ -45,6 +75,50 @@ struct SidebarView: View {
         }
         .onAppear {
             chatViewModel.fetchConversations()
+        }
+    }
+
+    @ViewBuilder
+    private func serverRow(_ state: MCPServerRuntimeState) -> some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(statusColor(for: state))
+                .frame(width: 8, height: 8)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.serverName)
+                    .font(.subheadline)
+                Text(state.statusSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 12)
+
+            if state.lifecycle == .failed || state.lifecycle == .disconnected {
+                Button {
+                    Task { await appState.mcpHost.restart(serverName: state.serverName) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.plain)
+                .help("Restart \(state.serverName)")
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func statusColor(for state: MCPServerRuntimeState) -> Color {
+        switch state.lifecycle {
+        case .connected:
+            return .green
+        case .connecting, .restarting:
+            return .orange
+        case .failed:
+            return .red
+        case .disabled, .disconnected:
+            return Color.secondary.opacity(0.5)
         }
     }
 }

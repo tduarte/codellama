@@ -8,6 +8,8 @@
 import SwiftUI
 import SwiftData
 import Defaults
+import AppKit
+import UniformTypeIdentifiers
 
 @MainActor
 @Observable
@@ -16,6 +18,7 @@ final class ChatViewModel {
 
     var conversations: [Conversation] = []
     var selectedConversation: Conversation?
+    var searchText: String = ""
     var inputText: String = ""
     var isGenerating: Bool = false
     var error: String?
@@ -67,6 +70,15 @@ final class ChatViewModel {
 
     func selectConversation(_ conversation: Conversation) {
         selectedConversation = conversation
+    }
+
+    var filteredConversations: [Conversation] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return conversations }
+
+        return conversations.filter { conversation in
+            conversationMatchesSearch(conversation, query: query)
+        }
     }
 
     func updateModel(_ model: String, for conversation: Conversation) {
@@ -168,6 +180,22 @@ final class ChatViewModel {
         isGenerating = false
     }
 
+    func exportConversation(_ conversation: Conversation) {
+        let panel = NSSavePanel()
+        panel.title = "Export Conversation"
+        panel.nameFieldStringValue = sanitizedExportFileName(for: conversation)
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
+        panel.canCreateDirectories = true
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try makeMarkdownExport(for: conversation).write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            self.error = "Failed to export conversation: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - Title Generation
 
     private func generateTitle(client: OllamaClient, conversation: Conversation) {
@@ -233,5 +261,62 @@ final class ChatViewModel {
         }
 
         return ollamaMessages
+    }
+
+    private func conversationMatchesSearch(_ conversation: Conversation, query: String) -> Bool {
+        let normalizedQuery = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+
+        let searchableFields = [
+            conversation.title,
+            conversation.model,
+            conversation.systemPrompt ?? ""
+        ] + conversation.messages.map(\.content)
+
+        return searchableFields.contains { field in
+            field.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                .contains(normalizedQuery)
+        }
+    }
+
+    private func makeMarkdownExport(for conversation: Conversation) -> String {
+        let header = [
+            "# \(conversation.title)",
+            "",
+            "- Model: \(conversation.model)",
+            "- Created: \(conversation.createdAt.formatted(date: .abbreviated, time: .shortened))",
+            "- Updated: \(conversation.modifiedAt.formatted(date: .abbreviated, time: .shortened))"
+        ]
+
+        let systemPromptSection: [String]
+        if let systemPrompt = conversation.systemPrompt, !systemPrompt.isEmpty {
+            systemPromptSection = [
+                "",
+                "## System Prompt",
+                "",
+                systemPrompt
+            ]
+        } else {
+            systemPromptSection = []
+        }
+
+        let messageSections = conversation.messages
+            .sorted { $0.createdAt < $1.createdAt }
+            .map { message in
+                [
+                    "",
+                    "## \(message.role.capitalized)",
+                    "",
+                    message.content.isEmpty ? "_Empty_" : message.content
+                ].joined(separator: "\n")
+            }
+
+        return (header + systemPromptSection + messageSections).joined(separator: "\n")
+    }
+
+    private func sanitizedExportFileName(for conversation: Conversation) -> String {
+        let rawName = conversation.title.isEmpty ? "Conversation" : conversation.title
+        let invalidCharacters = CharacterSet(charactersIn: "/:\\?%*|\"<>")
+        let cleaned = rawName.components(separatedBy: invalidCharacters).joined(separator: "-")
+        return cleaned + ".md"
     }
 }

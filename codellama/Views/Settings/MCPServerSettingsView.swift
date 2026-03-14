@@ -52,6 +52,12 @@ struct MCPServerSettingsView: View {
                 .listStyle(.inset)
             }
         }
+        .onAppear {
+            appState.mcpHost.register(configs: servers)
+        }
+        .onChange(of: servers.map(\.name)) {
+            appState.mcpHost.register(configs: servers)
+        }
         .toolbar {
             ToolbarItem {
                 Button {
@@ -115,13 +121,26 @@ struct MCPServerSettingsView: View {
             Spacer()
 
             // Connection status indicator
-            connectionIndicator(serverName: server.name)
+            connectionIndicator(for: server)
 
             Toggle("", isOn: Binding(
                 get: { server.isEnabled },
-                set: { server.isEnabled = $0 }
+                set: { newValue in
+                    server.isEnabled = newValue
+                    try? modelContext.save()
+                    Task { await appState.mcpHost.setEnabled(newValue, for: server) }
+                }
             ))
             .labelsHidden()
+
+            Button {
+                Task { await appState.mcpHost.restart(serverName: server.name) }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .disabled(!server.isEnabled)
 
             Button {
                 prepareForEdit(server)
@@ -136,11 +155,19 @@ struct MCPServerSettingsView: View {
     }
 
     @ViewBuilder
-    private func connectionIndicator(serverName: String) -> some View {
-        let isConnected = appState.mcpHost.connections[serverName]?.isConnected ?? false
-        Circle()
-            .fill(isConnected ? Color.green : Color.secondary.opacity(0.4))
-            .frame(width: 8, height: 8)
+    private func connectionIndicator(for server: MCPServerConfig) -> some View {
+        let state = appState.mcpHost.serverStates[server.name]
+
+        HStack(spacing: 6) {
+            Circle()
+                .fill(connectionColor(for: state?.lifecycle ?? .disconnected))
+                .frame(width: 8, height: 8)
+
+            Text(state?.statusSummary ?? "Disconnected")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 120, alignment: .leading)
+        }
     }
 
     // MARK: - Actions
@@ -172,9 +199,15 @@ struct MCPServerSettingsView: View {
         config.isEnabled = formEnabled
         modelContext.insert(config)
         try? modelContext.save()
+        appState.mcpHost.register(configs: servers + [config])
+
+        if config.isEnabled {
+            Task { try? await appState.mcpHost.connect(config: config) }
+        }
     }
 
     private func applyEdits(to server: MCPServerConfig) {
+        let previousName = server.name
         let args = formArguments
             .split(separator: " ", omittingEmptySubsequences: true)
             .map(String.init)
@@ -184,17 +217,41 @@ struct MCPServerSettingsView: View {
         server.arguments = args
         server.isEnabled = formEnabled
         try? modelContext.save()
+
+        Task {
+            if previousName != server.name {
+                await appState.mcpHost.removeServer(named: previousName)
+            } else if !server.isEnabled {
+                await appState.mcpHost.disconnect(serverName: server.name)
+            }
+
+            appState.mcpHost.register(configs: servers)
+
+            if server.isEnabled {
+                await appState.mcpHost.restart(serverName: server.name)
+            }
+        }
     }
 
     private func deleteServers(at offsets: IndexSet) {
         for index in offsets {
             let server = servers[index]
-            // Disconnect if currently connected
-            if appState.mcpHost.connections[server.name] != nil {
-                Task { await appState.mcpHost.disconnect(serverName: server.name) }
-            }
+            Task { await appState.mcpHost.removeServer(named: server.name) }
             modelContext.delete(server)
         }
         try? modelContext.save()
+    }
+
+    private func connectionColor(for lifecycle: MCPServerRuntimeState.Lifecycle) -> Color {
+        switch lifecycle {
+        case .connected:
+            return .green
+        case .connecting, .restarting:
+            return .orange
+        case .failed:
+            return .red
+        case .disabled, .disconnected:
+            return Color.secondary.opacity(0.4)
+        }
     }
 }
