@@ -26,7 +26,7 @@ A native macOS chat app for running local AI models via [Ollama](https://ollama.
 
 1. Clone the repo:
    ```bash
-   git clone https://github.com/your-username/codellama.git
+   git clone https://github.com/tduarte/codellama.git
    cd codellama
    ```
 
