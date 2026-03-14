@@ -69,6 +69,15 @@ final class ChatViewModel {
         selectedConversation = conversation
     }
 
+    func updateModel(_ model: String, for conversation: Conversation) {
+        guard conversation.model != model else { return }
+
+        conversation.model = model
+        conversation.modifiedAt = .now
+        try? modelContext.save()
+        fetchConversations()
+    }
+
     // MARK: - Messaging
 
     func send(appState: AppState) async {
