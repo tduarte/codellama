@@ -18,6 +18,7 @@ struct MessageBubble: View {
 
             VStack(alignment: message.role == "user" ? .trailing : .leading, spacing: 4) {
                 roleLabel
+                imageAttachmentSummary
 
                 if message.isStreaming && message.content.isEmpty {
                     typingIndicator
@@ -57,6 +58,18 @@ struct MessageBubble: View {
             Label(message.role.capitalized, systemImage: "wrench")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var imageAttachmentSummary: some View {
+        if !message.imageAttachments.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "photo")
+                Text("\(message.imageAttachments.count) image\(message.imageAttachments.count == 1 ? "" : "s") attached")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 

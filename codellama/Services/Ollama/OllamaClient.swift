@@ -245,6 +245,30 @@ actor OllamaClient {
         }
     }
 
+    // MARK: - Model Info
+
+    /// Fetch detailed model information via `POST /api/show`.
+    func showModel(named model: String) async throws -> OllamaShowResponse {
+        let urlRequest = try buildPOSTRequest(path: "api/show", body: OllamaShowRequest(model: model))
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: urlRequest)
+        } catch {
+            throw OllamaError.networkError(error)
+        }
+
+        try validateHTTPResponse(response)
+
+        do {
+            return try decoder.decode(OllamaShowResponse.self, from: data)
+        } catch {
+            let preview = String(data: data.prefix(500), encoding: .utf8) ?? "<non-utf8>"
+            throw OllamaError.decodingError(error, responsePreview: preview)
+        }
+    }
+
     // MARK: - Private Helpers
 
     private func buildPOSTRequest<Body: Encodable>(path: String, body: Body) throws -> URLRequest {

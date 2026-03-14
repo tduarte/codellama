@@ -5,7 +5,9 @@
 //  Created by Thiago Duarte on 3/14/26.
 //
 
+import AppKit
 import SwiftUI
+import Defaults
 
 struct MainView: View {
     @Environment(AppState.self) private var appState
@@ -87,7 +89,13 @@ struct MainView: View {
                 }
             }
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        presentCommandPalette()
+                    } label: {
+                        Label("Commands", systemImage: "command")
+                    }
+
                     Button {
                         showSkills = true
                     } label: {
@@ -115,6 +123,161 @@ struct MainView: View {
                     .environment(appState)
                     .frame(minWidth: 980, minHeight: 680)
             }
+            .sheet(
+                isPresented: Binding(
+                    get: { appState.isCommandPalettePresented },
+                    set: { appState.isCommandPalettePresented = $0 }
+                )
+            ) {
+                CommandPaletteView(
+                    isPresented: Binding(
+                        get: { appState.isCommandPalettePresented },
+                        set: { appState.isCommandPalettePresented = $0 }
+                    ),
+                    items: commandPaletteItems
+                )
+            }
+            .onChange(of: appState.isCommandPalettePresented) { _, isPresented in
+                if isPresented {
+                    chatViewModel.fetchConversations()
+                    skillViewModel.fetchSkills()
+                }
+            }
         }
+    }
+
+    private var commandPaletteItems: [CommandPaletteItem] {
+        var items: [CommandPaletteItem] = [
+            CommandPaletteItem(
+                id: "new-conversation",
+                title: "New Conversation",
+                subtitle: "Create a fresh chat with the current default model.",
+                systemImage: "square.and.pencil",
+                category: "Quick Action",
+                keywords: ["new chat", "conversation", "compose"]
+            ) {
+                chatViewModel.createConversation(model: appState.selectedModel)
+            },
+            CommandPaletteItem(
+                id: "open-skills",
+                title: "Open Skills",
+                subtitle: "Browse and edit saved skill sequences.",
+                systemImage: "wand.and.stars",
+                category: "Quick Action",
+                keywords: ["skills", "tools", "automation"]
+            ) {
+                showSkills = true
+            },
+            CommandPaletteItem(
+                id: "open-settings",
+                title: "Open Settings",
+                subtitle: "Change Ollama, MCP server, and indexing settings.",
+                systemImage: "gearshape",
+                category: "Quick Action",
+                keywords: ["preferences", "settings", "configuration"]
+            ) {
+                openSettings()
+            },
+            CommandPaletteItem(
+                id: "reindex-context",
+                title: "Reindex Local Context",
+                subtitle: "Refresh embeddings for attached folders.",
+                systemImage: "arrow.triangle.2.circlepath",
+                category: "Quick Action",
+                keywords: ["index", "embeddings", "context", "rag"]
+            ) {
+                Task {
+                    await appState.contextIndexManager.reindexLocalFolders(
+                        using: appState.ollamaClient,
+                        embeddingModel: Defaults[.embeddingModel]
+                    )
+                }
+            }
+        ]
+
+        if chatViewModel.isGenerating {
+            items.append(
+                CommandPaletteItem(
+                    id: "stop-generation",
+                    title: "Stop Response",
+                    subtitle: "Cancel the active streaming response.",
+                    systemImage: "stop.circle",
+                    category: "Quick Action",
+                    keywords: ["cancel", "stop", "generation", "stream"]
+                ) {
+                    chatViewModel.stopGenerating()
+                }
+            )
+        }
+
+        if let conversation = chatViewModel.selectedConversation {
+            items.append(
+                CommandPaletteItem(
+                    id: "export-\(conversation.id.uuidString)",
+                    title: "Export Current Conversation",
+                    subtitle: conversation.title,
+                    systemImage: "square.and.arrow.up",
+                    category: "Quick Action",
+                    keywords: ["export", "markdown", "share"]
+                ) {
+                    chatViewModel.exportConversation(conversation)
+                }
+            )
+        }
+
+        let unhealthyServers = appState.mcpHost.sortedServerStates.filter {
+            $0.lifecycle == .failed || $0.lifecycle == .disconnected
+        }
+        items.append(contentsOf: unhealthyServers.map { state in
+            CommandPaletteItem(
+                id: "restart-\(state.serverName)",
+                title: "Restart \(state.serverName)",
+                subtitle: state.statusSummary,
+                systemImage: "arrow.clockwise",
+                category: "Server",
+                keywords: ["restart", "server", state.serverName]
+            ) {
+                Task { await appState.mcpHost.restart(serverName: state.serverName) }
+            }
+        })
+
+        items.append(contentsOf: chatViewModel.conversations.map { conversation in
+            CommandPaletteItem(
+                id: "conversation-\(conversation.id.uuidString)",
+                title: conversation.title,
+                subtitle: "Conversation • \(conversation.model)",
+                systemImage: "bubble.left.and.bubble.right",
+                category: "Conversation",
+                keywords: [conversation.model, conversation.systemPrompt ?? ""]
+            ) {
+                chatViewModel.selectConversation(conversation)
+            }
+        })
+
+        items.append(contentsOf: skillViewModel.skills.map { skill in
+            CommandPaletteItem(
+                id: "skill-\(skill.id.uuidString)",
+                title: skill.name,
+                subtitle: skill.descriptionText.isEmpty ? "Saved skill" : skill.descriptionText,
+                systemImage: "wand.and.stars",
+                category: "Skill",
+                keywords: skill.toolSequence.map { "\($0.serverName) \($0.toolName)" }
+            ) {
+                skillViewModel.selectedSkill = skill
+                showSkills = true
+            }
+        })
+
+        return items
+    }
+
+    private func presentCommandPalette() {
+        chatViewModel.fetchConversations()
+        skillViewModel.fetchSkills()
+        appState.isCommandPalettePresented = true
+    }
+
+    private func openSettings() {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 }

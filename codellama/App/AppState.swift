@@ -22,6 +22,8 @@ final class AppState {
     private(set) var status: Status = .checking
     private(set) var availableModels: [OllamaModel] = []
     private(set) var ollamaClient: OllamaClient?
+    var isCommandPalettePresented: Bool = false
+    private var modelCapabilities: [String: Set<String>] = [:]
 
     /// Currently selected model name
     var selectedModel: String {
@@ -59,6 +61,7 @@ final class AppState {
         do {
             let response = try await client.listModels()
             self.availableModels = response.models
+            self.modelCapabilities = [:]
 
             // Auto-select first model if current selection isn't available
             if !response.models.contains(where: { $0.name == selectedModel }),
@@ -108,6 +111,24 @@ final class AppState {
 
     func shutdown() async {
         await mcpHost.disconnectAll()
+    }
+
+    func modelSupportsVision(_ model: String) async -> Bool {
+        if let capabilities = modelCapabilities[model] {
+            return capabilities.contains("vision")
+        }
+
+        guard let client = ollamaClient else { return false }
+
+        do {
+            let response = try await client.showModel(named: model)
+            let capabilities = Set((response.capabilities ?? []).map { $0.lowercased() })
+            modelCapabilities[model] = capabilities
+            return capabilities.contains("vision")
+        } catch {
+            modelCapabilities[model] = []
+            return false
+        }
     }
 
     private func findOllamaBinary() -> String? {

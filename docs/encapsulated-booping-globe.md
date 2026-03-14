@@ -1,7 +1,7 @@
 # CodeLlama — Native macOS Agentic IDE
 ## Progress Tracker
 
-_Last updated: 2026-03-14 14:50:33 PDT_
+_Last updated: 2026-03-14 15:42:00 PDT_
 
 | Phase | Status | Commit | Files |
 |---|---|---|---|
@@ -215,6 +215,12 @@ codellama/
 **Goal:** Production-quality UX, parallel execution, persistent store.
 
 ### Implemented in this pass
+- `ViewModels/ChatViewModel.swift` — added pending dropped-file attachments, validation, PDF extraction, native image upload for vision-capable models, and prompt composition for chat context
+- `Views/Chat/ChatInputView.swift` — added attached-file chips, drop-target affordance, and send-state updates for attachment-only prompts
+- `Views/Chat/ChatView.swift` — enabled drag-and-drop file ingestion on the chat surface with inline error feedback
+- `Views/CommandPalette/CommandPaletteView.swift` — added a searchable command palette for app actions, conversation switching, skill access, and server recovery
+- `Views/MainView.swift` — wired the command palette into the main window, toolbar, and live app actions
+- `codellamaApp.swift` — registered a global `Cmd+K` menu command for opening the palette
 - `Services/Embedding/VectorStore.swift` — replaced the in-memory store with a SQLite-backed persistent store plus fallback in-memory mode
 - `Services/Embedding/ChunkIndexer.swift` — skips re-embedding unchanged resources by checking persisted fingerprints before chunk generation
 - `Services/Embedding/ContextIndexManager.swift` — prunes deleted local files while preserving unchanged indexed resources across launches
@@ -238,8 +244,6 @@ codellama/
 - ✅ Request cancellation for agent plan execution
 
 ### Remaining Phase 4 work
-- Cmd+K command palette
-- Drag-and-drop files into chat context
 - Debounced UI updates beyond the current cancellation/polish pass
 
 ---

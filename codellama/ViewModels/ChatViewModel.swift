@@ -9,7 +9,82 @@ import SwiftUI
 import SwiftData
 import Defaults
 import AppKit
+import PDFKit
 import UniformTypeIdentifiers
+
+struct PendingChatAttachment: Identifiable, Equatable {
+    enum Kind: String, Equatable {
+        case text
+        case pdf
+        case image
+
+        var systemImage: String {
+            switch self {
+            case .text:
+                return "doc.text"
+            case .pdf:
+                return "doc.richtext"
+            case .image:
+                return "photo"
+            }
+        }
+
+        var displayLabel: String {
+            switch self {
+            case .text:
+                return "Text"
+            case .pdf:
+                return "PDF"
+            case .image:
+                return "Image"
+            }
+        }
+    }
+
+    let id: UUID
+    let url: URL
+    let kind: Kind
+    let displayName: String
+    let fileExtension: String
+    let content: String
+    let byteCount: Int
+    let detailText: String
+    let imageAttachment: ChatImageAttachment?
+
+    init(
+        url: URL,
+        kind: Kind,
+        content: String,
+        byteCount: Int,
+        detailText: String,
+        imageAttachment: ChatImageAttachment? = nil
+    ) {
+        self.id = UUID()
+        self.url = url
+        self.kind = kind
+        self.displayName = url.lastPathComponent
+        self.fileExtension = url.pathExtension.lowercased()
+        self.content = content
+        self.byteCount = byteCount
+        self.detailText = detailText
+        self.imageAttachment = imageAttachment
+    }
+
+    var formattedSize: String {
+        ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file)
+    }
+
+    var promptHeading: String {
+        switch kind {
+        case .text:
+            return "Attached file"
+        case .pdf:
+            return "Attached PDF"
+        case .image:
+            return "Attached image"
+        }
+    }
+}
 
 @MainActor
 @Observable
@@ -21,12 +96,29 @@ final class ChatViewModel {
     var searchText: String = ""
     var inputText: String = ""
     var isGenerating: Bool = false
+    var isProcessingAttachmentDrop: Bool = false
+    var pendingAttachments: [PendingChatAttachment] = []
     var error: String?
 
     // MARK: - Private
 
     private var modelContext: ModelContext
     private var generationTask: Task<Void, Never>?
+    private let fileManager = FileManager.default
+    private let textAttachmentExtensions: Set<String> = [
+        "c", "cc", "cpp", "css", "go", "h", "hpp", "html", "java", "js", "json", "jsx",
+        "md", "mjs", "py", "rb", "rs", "sh", "sql", "swift", "toml", "ts", "tsx", "txt",
+        "xml", "yaml", "yml"
+    ]
+    private let imageAttachmentExtensions: Set<String> = [
+        "png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "webp", "heic", "heif"
+    ]
+    private let pdfAttachmentExtensions: Set<String> = ["pdf"]
+    private let maxTextAttachmentFileSizeBytes = 128_000
+    private let maxBinaryAttachmentFileSizeBytes = 8_000_000
+    private let maxAttachmentCount = 6
+    private let maxAttachmentCharacters = 20_000
+    private let maxPDFPages = 12
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -92,8 +184,17 @@ final class ChatViewModel {
 
     // MARK: - Messaging
 
+    var canSendCurrentInput: Bool {
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty
+    }
+
+    var hasPendingImageAttachments: Bool {
+        pendingAttachments.contains { $0.kind == .image }
+    }
+
     func send(appState: AppState) async {
-        let prompt = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let attachments = pendingAttachments
+        let prompt = composedPrompt(using: attachments)
         guard !prompt.isEmpty else { return }
         guard let client = appState.ollamaClient else {
             error = "Ollama is not connected."
@@ -103,13 +204,22 @@ final class ChatViewModel {
             error = "No conversation selected."
             return
         }
+        if attachments.contains(where: { $0.kind == .image }) {
+            let supportsVision = await appState.modelSupportsVision(conversation.model)
+            guard supportsVision else {
+                error = "\(conversation.model) does not support image inputs."
+                return
+            }
+        }
 
         // Clear input immediately
         inputText = ""
+        pendingAttachments.removeAll()
         error = nil
 
         // Create user message
         let userMessage = ChatMessage(role: "user", content: prompt)
+        userMessage.imageAttachments = attachments.compactMap(\.imageAttachment)
         userMessage.conversation = conversation
         conversation.messages.append(userMessage)
         modelContext.insert(userMessage)
@@ -178,6 +288,64 @@ final class ChatViewModel {
         generationTask?.cancel()
         generationTask = nil
         isGenerating = false
+    }
+
+    func addDroppedFiles(_ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+
+        isProcessingAttachmentDrop = true
+        defer { isProcessingAttachmentDrop = false }
+
+        var attachments = pendingAttachments
+        var failures: [String] = []
+        let uniqueURLs = Array(Set(urls.map { $0.standardizedFileURL })).sorted { $0.path < $1.path }
+
+        for url in uniqueURLs {
+            if attachments.count >= maxAttachmentCount {
+                failures.append("Only \(maxAttachmentCount) files can be attached at once.")
+                break
+            }
+
+            if attachments.contains(where: { $0.url.standardizedFileURL == url }) {
+                continue
+            }
+
+            do {
+                let kind = try attachmentKind(for: url)
+                let data = try Data(contentsOf: url)
+                let content = try extractAttachmentContent(from: url, data: data, kind: kind)
+                let imageAttachment = try makeImageAttachment(from: url, data: data, kind: kind)
+
+                guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    failures.append("\(url.lastPathComponent): no readable content found.")
+                    continue
+                }
+
+                attachments.append(
+                    PendingChatAttachment(
+                        url: url,
+                        kind: kind,
+                        content: content,
+                        byteCount: data.count,
+                        detailText: "\(kind.displayLabel) • \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file))",
+                        imageAttachment: imageAttachment
+                    )
+                )
+            } catch {
+                failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+
+        pendingAttachments = attachments
+        if failures.isEmpty {
+            error = nil
+        } else {
+            error = failures.prefix(5).joined(separator: "\n")
+        }
+    }
+
+    func removePendingAttachment(_ attachment: PendingChatAttachment) {
+        pendingAttachments.removeAll { $0.id == attachment.id }
     }
 
     func exportConversation(_ conversation: Conversation) {
@@ -257,10 +425,62 @@ final class ChatViewModel {
             if role == .assistant && message.isStreaming && message.content.isEmpty {
                 continue
             }
-            ollamaMessages.append(OllamaChatMessage(role: role, content: message.content))
+            ollamaMessages.append(
+                OllamaChatMessage(
+                    role: role,
+                    content: message.content,
+                    images: message.imageAttachments.map(\.base64Data)
+                )
+            )
         }
 
         return ollamaMessages
+    }
+
+    private func composedPrompt(using attachments: [PendingChatAttachment]) -> String {
+        let trimmedInput = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty || !attachments.isEmpty else { return "" }
+
+        let documentAttachments = attachments.filter { $0.kind != .image }
+        let imageAttachments = attachments.filter { $0.kind == .image }
+
+        guard !documentAttachments.isEmpty else {
+            if !trimmedInput.isEmpty {
+                return trimmedInput
+            }
+            return imageAttachments.count == 1
+                ? "Please analyze the attached image."
+                : "Please analyze the attached images."
+        }
+
+        var sections: [String] = []
+        if !trimmedInput.isEmpty {
+            sections.append(trimmedInput)
+        } else {
+            sections.append("Please use the attached file context.")
+        }
+
+        let attachmentSections = documentAttachments.map { attachment in
+            let fence = attachment.content.contains("```") ? "````" : "```"
+            let language = attachment.kind == .text && fence == "```" ? attachment.fileExtension : "text"
+            return [
+                "\(attachment.promptHeading): \(attachment.url.path(percentEncoded: false))",
+                "Source: \(attachment.detailText)",
+                "",
+                "\(fence)\(language)",
+                attachment.content,
+                fence
+            ].joined(separator: "\n")
+        }
+
+        sections.append((["Attached file context:"] + attachmentSections).joined(separator: "\n\n"))
+
+        if !imageAttachments.isEmpty {
+            let names = imageAttachments.map(\.displayName).joined(separator: ", ")
+            sections.append("Attached image\(imageAttachments.count == 1 ? "" : "s"): \(names)")
+        }
+
+        return sections.joined(separator: "\n\n")
     }
 
     private func conversationMatchesSearch(_ conversation: Conversation, query: String) -> Bool {
@@ -318,5 +538,178 @@ final class ChatViewModel {
         let invalidCharacters = CharacterSet(charactersIn: "/:\\?%*|\"<>")
         let cleaned = rawName.components(separatedBy: invalidCharacters).joined(separator: "-")
         return cleaned + ".md"
+    }
+
+    private func attachmentKind(for url: URL) throws -> PendingChatAttachment.Kind {
+        let path = url.path(percentEncoded: false)
+        var isDirectory: ObjCBool = false
+
+        guard fileManager.fileExists(atPath: path, isDirectory: &isDirectory) else {
+            throw AttachmentError.fileNotFound
+        }
+        guard !isDirectory.boolValue else {
+            throw AttachmentError.directoriesUnsupported
+        }
+
+        let ext = url.pathExtension.lowercased()
+        let values = try url.resourceValues(forKeys: [.fileSizeKey])
+        let size = values.fileSize ?? 0
+
+        if textAttachmentExtensions.contains(ext) {
+            if size > maxTextAttachmentFileSizeBytes {
+                throw AttachmentError.fileTooLarge(maxTextAttachmentFileSizeBytes)
+            }
+            return .text
+        }
+
+        if pdfAttachmentExtensions.contains(ext) {
+            if size > maxBinaryAttachmentFileSizeBytes {
+                throw AttachmentError.fileTooLarge(maxBinaryAttachmentFileSizeBytes)
+            }
+            return .pdf
+        }
+
+        if imageAttachmentExtensions.contains(ext) {
+            if size > maxBinaryAttachmentFileSizeBytes {
+                throw AttachmentError.fileTooLarge(maxBinaryAttachmentFileSizeBytes)
+            }
+            return .image
+        }
+
+        throw AttachmentError.unsupportedFileType(ext.isEmpty ? "unknown" : ext)
+    }
+
+    private func extractAttachmentContent(
+        from url: URL,
+        data: Data,
+        kind: PendingChatAttachment.Kind
+    ) throws -> String {
+        switch kind {
+        case .text:
+            return try clampAttachmentContent(decodeTextAttachment(data, from: url))
+        case .pdf:
+            return try extractPDFContent(from: url)
+        case .image:
+            return url.lastPathComponent
+        }
+    }
+
+    private func makeImageAttachment(
+        from url: URL,
+        data: Data,
+        kind: PendingChatAttachment.Kind
+    ) throws -> ChatImageAttachment? {
+        guard kind == .image else { return nil }
+        guard let mimeType = imageMimeType(for: url) else {
+            throw AttachmentError.unsupportedImageFormat
+        }
+
+        return ChatImageAttachment(
+            fileName: url.lastPathComponent,
+            mimeType: mimeType,
+            base64Data: data.base64EncodedString()
+        )
+    }
+
+    private func decodeTextAttachment(_ data: Data, from url: URL) throws -> String {
+        for encoding in [String.Encoding.utf8, .utf16, .ascii, .isoLatin1] {
+            if let string = String(data: data, encoding: encoding) {
+                return string
+            }
+        }
+
+        throw AttachmentError.unsupportedEncoding(url.lastPathComponent)
+    }
+
+    private func extractPDFContent(from url: URL) throws -> String {
+        guard let document = PDFDocument(url: url) else {
+            throw AttachmentError.unreadablePDF
+        }
+
+        let pageCount = min(document.pageCount, maxPDFPages)
+        var pageSections: [String] = []
+
+        for index in 0..<pageCount {
+            guard let page = document.page(at: index) else { continue }
+
+            let directText = page.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !directText.isEmpty {
+                pageSections.append("Page \(index + 1)\n\(directText)")
+            }
+        }
+
+        guard !pageSections.isEmpty else {
+            throw AttachmentError.noExtractableContent
+        }
+
+        return try clampAttachmentContent(pageSections.joined(separator: "\n\n"))
+    }
+
+    private func imageMimeType(for url: URL) -> String? {
+        switch url.pathExtension.lowercased() {
+        case "png":
+            return "image/png"
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "gif":
+            return "image/gif"
+        case "bmp":
+            return "image/bmp"
+        case "tif", "tiff":
+            return "image/tiff"
+        case "webp":
+            return "image/webp"
+        case "heic":
+            return "image/heic"
+        case "heif":
+            return "image/heif"
+        default:
+            return nil
+        }
+    }
+
+    private func clampAttachmentContent(_ content: String) throws -> String {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw AttachmentError.noExtractableContent
+        }
+
+        guard trimmed.count > maxAttachmentCharacters else { return trimmed }
+
+        let index = trimmed.index(trimmed.startIndex, offsetBy: maxAttachmentCharacters)
+        return String(trimmed[..<index]) + "\n\n[Truncated after \(maxAttachmentCharacters) characters.]"
+    }
+}
+
+enum AttachmentError: LocalizedError {
+    case directoriesUnsupported
+    case fileNotFound
+    case fileTooLarge(Int)
+    case noExtractableContent
+    case unreadablePDF
+    case unsupportedEncoding(String)
+    case unsupportedFileType(String)
+    case unsupportedImageFormat
+
+    var errorDescription: String? {
+        switch self {
+        case .directoriesUnsupported:
+            return "folders are not supported."
+        case .fileNotFound:
+            return "file could not be found."
+        case .fileTooLarge(let bytes):
+            let size = ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+            return "file exceeds the \(size) attachment limit."
+        case .noExtractableContent:
+            return "no readable text could be extracted."
+        case .unreadablePDF:
+            return "PDF could not be opened."
+        case .unsupportedEncoding:
+            return "file could not be decoded as text."
+        case .unsupportedFileType(let type):
+            return "unsupported file type (\(type))."
+        case .unsupportedImageFormat:
+            return "image format is not supported for upload."
+        }
     }
 }
