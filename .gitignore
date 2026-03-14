@@ -32,3 +32,4 @@ playground.xcworkspace
 
 # Instruments
 *.trace
+/.cursor
