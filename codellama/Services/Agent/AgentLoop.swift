@@ -30,6 +30,7 @@ final class AgentLoop {
 
     private(set) var currentTask: AgentTask?
     private(set) var isRunning: Bool = false
+    private var executionTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -127,44 +128,32 @@ final class AgentLoop {
         task.phase = .executing
         currentTask = task
 
-        // Phase 3: Execute the plan step by step
-        let executor = PlanExecutor(mcpHost: mcpHost)
-        await executor.execute(plan: &plan) { [weak self] updatedPlan in
-            guard let self else { return }
-            self.currentTask?.plan = updatedPlan
+        executionTask?.cancel()
+        executionTask = Task { [weak self] in
+            await self?.executeApprovedPlan(task: task, plan: plan)
         }
-
-        // Record step results in the task timeline
-        for step in plan.steps {
-            let event = TimelineEvent(
-                type: step.status == .failed ? .error : .toolResult,
-                summary: "\(step.toolCall.toolName): \(step.status.rawValue)",
-                detail: step.result?.content
-            )
-            task.timeline.append(event)
-        }
-
-        task.plan = plan
-        task.phase = plan.status == .completed ? .completed : .failed
-        task.completedAt = .now
-
-        let completedEvent = TimelineEvent(
-            type: .completed,
-            summary: plan.status == .completed ? "Plan completed successfully" : "Plan completed with errors"
-        )
-        task.timeline.append(completedEvent)
-
-        currentTask = task
-        isRunning = false
     }
 
     // MARK: - Cancellation
 
     /// Discard the current plan without executing it.
     func cancelPlan() {
-        currentTask?.phase = .failed
+        executionTask?.cancel()
+        executionTask = nil
+
+        currentTask?.plan?.status = .cancelled
+        currentTask?.phase = .cancelled
         currentTask?.completedAt = .now
+        currentTask?.timeline.append(TimelineEvent(
+            type: .cancelled,
+            summary: "Task cancelled"
+        ))
         isRunning = false
+    }
+
+    func dismissTask() {
+        guard !isRunning else { return }
+        currentTask = nil
     }
 
     private func fetchSkills() -> [Skill] {
@@ -217,5 +206,65 @@ final class AgentLoop {
         let suffix = skill.toolSequence.count > 3 ? ", …" : ""
         let description = skill.descriptionText.isEmpty ? "No description." : skill.descriptionText
         return "- \(skill.name): \(description) Tools: \(toolPreview)\(suffix)"
+    }
+
+    private func executeApprovedPlan(task: AgentTask, plan: ExecutionPlan) async {
+        var task = task
+        var plan = plan
+
+        let executor = PlanExecutor(mcpHost: mcpHost)
+        await executor.execute(plan: &plan) { [weak self] updatedPlan in
+            guard let self else { return }
+            self.currentTask?.plan = updatedPlan
+        }
+
+        for step in plan.steps where step.status != .pending {
+            let eventType: TimelineEvent.EventType
+            switch step.status {
+            case .failed:
+                eventType = .error
+            case .skipped:
+                eventType = .cancelled
+            case .pending, .running, .succeeded:
+                eventType = .toolResult
+            }
+
+            let detail = step.result?.content ?? (step.status == .skipped ? "Skipped after cancellation." : nil)
+            task.timeline.append(TimelineEvent(
+                type: eventType,
+                summary: "\(step.toolCall.toolName): \(step.status.rawValue)",
+                detail: detail
+            ))
+        }
+
+        task.plan = plan
+        task.completedAt = .now
+
+        switch plan.status {
+        case .completed:
+            task.phase = .completed
+            task.timeline.append(TimelineEvent(
+                type: .completed,
+                summary: "Plan completed successfully"
+            ))
+        case .cancelled:
+            task.phase = .cancelled
+            task.timeline.append(TimelineEvent(
+                type: .cancelled,
+                summary: "Plan cancelled"
+            ))
+        case .failed:
+            task.phase = .failed
+            task.timeline.append(TimelineEvent(
+                type: .completed,
+                summary: "Plan completed with errors"
+            ))
+        case .draft, .awaitingApproval, .executing:
+            task.phase = .failed
+        }
+
+        currentTask = task
+        isRunning = false
+        executionTask = nil
     }
 }

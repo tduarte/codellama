@@ -1,14 +1,14 @@
 # CodeLlama — Native macOS Agentic IDE
 ## Progress Tracker
 
-_Last updated: 2026-03-14 14:31:56 PDT_
+_Last updated: 2026-03-14 14:50:33 PDT_
 
 | Phase | Status | Commit | Files |
 |---|---|---|---|
 | Phase 1: Basic Chat + Ollama | ✅ **DONE** | `2d97a2c` | 24 files, 2031 insertions |
 | Phase 2: MCP Integration + Agentic Loop | ✅ **DONE** | `5430746` | +16 files |
 | Phase 3: Skills Engine + RAG | ✅ **DONE** | uncommitted local changes | +8 Swift files, Textual added |
-| Phase 4: Multi-Server Orchestration + Polish | 🔲 TODO | — | — |
+| Phase 4: Multi-Server Orchestration + Polish | 🟡 IN PROGRESS | uncommitted local changes | MCP health/restart + search/export + task cancellation |
 
 ---
 
@@ -87,7 +87,7 @@ Agent mode:
 codellama/
 ├── App/
 │   ├── codellamaApp.swift              ✅ Phase 1+2
-│   └── AppState.swift                  ✅ Phase 1+2 (has mcpHost, startup(modelContext:))
+│   └── AppState.swift                  ✅ Phase 1+2+4 (has mcpHost, startup(modelContext:))
 ├── Extensions/
 │   └── Defaults+Keys.swift             ✅ Phase 1
 ├── Models/
@@ -105,36 +105,36 @@ codellama/
 │   │   ├── OllamaClient.swift          ✅ Phase 1+3 (actor, chatStream async→AsyncThrowingStream, embeddings)
 │   │   └── OllamaStreamParser.swift    ✅ Phase 1
 │   ├── MCP/
-│   │   ├── MCPHost.swift               ✅ Phase 2 (@Observable, ollamaTools(), callTool())
-│   │   ├── MCPServerConnection.swift   ✅ Phase 2 (wraps MCP.Client, bridges Pipe→FileDescriptor)
-│   │   └── MCPProcessManager.swift     ✅ Phase 2 (Process() lifecycle, /usr/bin/env)
+│   │   ├── MCPHost.swift               ✅ Phase 2+4 (@Observable, ollamaTools(), callTool(), runtime health state)
+│   │   ├── MCPServerConnection.swift   ✅ Phase 2+4 (wraps MCP.Client, bridges Pipe→FileDescriptor, exit recovery)
+│   │   └── MCPProcessManager.swift     ✅ Phase 2+4 (Process() lifecycle, /usr/bin/env, unexpected-exit handling)
 │   ├── Agent/
-│   │   ├── AgentLoop.swift             ✅ Phase 2+3 (@Observable, run/approvePlan/cancelPlan, `/skill` execution)
+│   │   ├── AgentLoop.swift             ✅ Phase 2+3+4 (@Observable, run/approvePlan/cancelPlan, `/skill` execution)
 │   │   ├── ContextBuilder.swift        ✅ Phase 2+3 (MCP + indexed context retrieval)
 │   │   ├── PlanGenerator.swift         ✅ Phase 2+3 (saved skill summaries in planning prompt)
-│   │   └── PlanExecutor.swift          ✅ Phase 2
+│   │   └── PlanExecutor.swift          ✅ Phase 2+4
 │   └── Embedding/
 │       ├── EmbeddingService.swift      ✅ Phase 3
 │       ├── VectorStore.swift           ✅ Phase 3
 │       ├── ChunkIndexer.swift          ✅ Phase 3
 │       └── ContextIndexManager.swift   ✅ Phase 3
 ├── ViewModels/
-│   ├── ChatViewModel.swift             ✅ Phase 1 (streaming, cancellation, auto-title)
-│   ├── AgentViewModel.swift            ✅ Phase 2+3
+│   ├── ChatViewModel.swift             ✅ Phase 1+4 (streaming, cancellation, auto-title, search/export)
+│   ├── AgentViewModel.swift            ✅ Phase 2+3+4
 │   └── SettingsViewModel.swift         ✅ Phase 1
 │   └── SkillViewModel.swift            ✅ Phase 3
 ├── Views/
-│   ├── MainView.swift                  ✅ Phase 1+2+3 (status routing, PlanTimelineView overlay, Skills sheet)
+│   ├── MainView.swift                  ✅ Phase 1+2+3+4 (status routing, PlanTimelineView overlay, Skills sheet)
 │   ├── Sidebar/
-│   │   ├── SidebarView.swift           ✅ Phase 1
-│   │   └── ConversationListItem.swift  ✅ Phase 1
+│   │   ├── SidebarView.swift           ✅ Phase 1+4
+│   │   └── ConversationListItem.swift  ✅ Phase 1+4
 │   ├── Chat/
 │   │   ├── ChatView.swift              ✅ Phase 1
 │   │   ├── MessageBubble.swift         ✅ Phase 1
 │   │   ├── ChatInputView.swift         ✅ Phase 1 (custom TextEditor, Enter/Shift+Enter)
 │   │   └── StreamingTextView.swift     ✅ Phase 1+3 (`Textual` structured markdown)
 │   ├── Agent/
-│   │   ├── PlanTimelineView.swift      ✅ Phase 2
+│   │   ├── PlanTimelineView.swift      ✅ Phase 2+4
 │   │   ├── PlanStepRow.swift           ✅ Phase 2
 │   │   └── ToolCallDetailView.swift    ✅ Phase 2
 │   ├── Diff/
@@ -146,7 +146,7 @@ codellama/
 │   └── Settings/
 │       ├── SettingsView.swift          ✅ Phase 1+2+3 (General + MCP Servers + Skills tabs)
 │       ├── OllamaSettingsView.swift    ✅ Phase 1+3 (embedding model + context folder indexing UI)
-│       ├── MCPServerSettingsView.swift ✅ Phase 2
+│       ├── MCPServerSettingsView.swift ✅ Phase 2+4
 │       └── MCPServerFormView.swift     ✅ Phase 2
 └── Resources/
     ├── Assets.xcassets
@@ -210,18 +210,33 @@ codellama/
 
 ---
 
-## 6. Phase 4: Multi-Server Orchestration + Polish (Future)
+## 6. Phase 4: Multi-Server Orchestration + Polish (In Progress)
 
 **Goal:** Production-quality UX, parallel execution, persistent store.
 
+### Implemented in this pass
+- `Services/MCP/MCPHost.swift` — added `MCPServerRuntimeState`, tracked lifecycle per server, and wired restart/enable/disable/remove flows
+- `Services/MCP/MCPProcessManager.swift` — added termination callbacks and unexpected-exit detection
+- `Services/MCP/MCPServerConnection.swift` — records connection failures and unexpected process termination state
+- `Views/Settings/MCPServerSettingsView.swift` — live connection state text, enable/disable wiring, and restart button
+- `Views/Sidebar/SidebarView.swift` — server health section with restart affordance, searchable conversations, and export action
+- `ViewModels/ChatViewModel.swift` — conversation search filtering and Markdown export
+- `Services/Agent/AgentLoop.swift` — persistent execution task, stop/cancel behavior, and dismissable terminal states
+- `Services/Agent/PlanExecutor.swift` — cancellation-aware execution with skipped remaining steps
+- `Views/Agent/PlanTimelineView.swift` — visible planning/executing/completed/cancelled states instead of approval-only UI
+
+### Milestone status
+- ✅ Auto-restart crashed MCP servers in `MCPProcessManager`
+- ✅ Server health status indicators in sidebar/settings
+- ✅ Conversation search + Markdown export
+- ✅ Request cancellation for agent plan execution
+
+### Remaining Phase 4 work
 - Parallel tool execution in `MCPHost` via `TaskGroup`
-- Auto-restart crashed MCP servers in `MCPProcessManager`
-- Server health status indicators in sidebar
-- SQLite-backed persistent VectorStore
+- SQLite-backed persistent `VectorStore`
 - Cmd+K command palette
 - Drag-and-drop files into chat context
-- Conversation search + export
-- Debounced UI updates, request cancellation
+- Debounced UI updates beyond the current cancellation/polish pass
 
 ---
 

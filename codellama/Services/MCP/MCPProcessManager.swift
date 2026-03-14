@@ -16,6 +16,8 @@ final class MCPProcessManager: @unchecked Sendable {
     // MARK: - Private State
 
     private var processes: [String: Process] = [:]
+    private var terminationHandlers: [String: @Sendable (Int32) -> Void] = [:]
+    private var intentionalStops: Set<String> = []
     private let lock = NSLock()
 
     // MARK: - Spawning
@@ -31,7 +33,8 @@ final class MCPProcessManager: @unchecked Sendable {
         serverName: String,
         command: String,
         arguments: [String],
-        environment: [String: String]?
+        environment: [String: String]?,
+        onUnexpectedExit: (@Sendable (Int32) -> Void)? = nil
     ) throws -> (Process, Pipe, Pipe) {
         let process = Process()
 
@@ -55,11 +58,16 @@ final class MCPProcessManager: @unchecked Sendable {
         process.standardInput = stdinPipe
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
+        process.terminationHandler = { [weak self] process in
+            self?.handleProcessTermination(serverName: serverName, process: process)
+        }
 
         try process.run()
 
         lock.lock()
         processes[serverName] = process
+        terminationHandlers[serverName] = onUnexpectedExit
+        intentionalStops.remove(serverName)
         lock.unlock()
 
         return (process, stdinPipe, stdoutPipe)
@@ -71,6 +79,8 @@ final class MCPProcessManager: @unchecked Sendable {
     func terminate(serverName: String) {
         lock.lock()
         let process = processes.removeValue(forKey: serverName)
+        terminationHandlers.removeValue(forKey: serverName)
+        intentionalStops.insert(serverName)
         lock.unlock()
 
         if let process, process.isRunning {
@@ -83,6 +93,8 @@ final class MCPProcessManager: @unchecked Sendable {
         lock.lock()
         let allProcesses = processes
         processes.removeAll()
+        terminationHandlers.removeAll()
+        intentionalStops.formUnion(allProcesses.keys)
         lock.unlock()
 
         for (_, process) in allProcesses where process.isRunning {
@@ -96,5 +108,16 @@ final class MCPProcessManager: @unchecked Sendable {
         let process = processes[serverName]
         lock.unlock()
         return process?.isRunning ?? false
+    }
+
+    private func handleProcessTermination(serverName: String, process: Process) {
+        lock.lock()
+        let wasIntentional = intentionalStops.remove(serverName) != nil
+        processes.removeValue(forKey: serverName)
+        let handler = terminationHandlers.removeValue(forKey: serverName)
+        lock.unlock()
+
+        guard !wasIntentional else { return }
+        handler?(process.terminationStatus)
     }
 }

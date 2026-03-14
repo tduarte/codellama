@@ -15,13 +15,14 @@ struct PlanTimelineView: View {
     let task: AgentTask
     var onApprove: () -> Void
     var onCancel: () -> Void
+    var onClose: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
 
             // MARK: Header
             VStack(alignment: .leading, spacing: 8) {
-                Text("Review Plan")
+                Text(title)
                     .font(.title2)
                     .bold()
 
@@ -69,26 +70,71 @@ struct PlanTimelineView: View {
 
             // MARK: Footer
             HStack {
-                if task.phase == .executing {
+                if task.phase == .architecting || task.phase == .planning || task.phase == .executing {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Executing…")
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(statusText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Button("Cancel", role: .cancel, action: onCancel)
-                    .disabled(task.phase == .executing)
+                if task.phase == .awaitingApproval {
+                    Button("Cancel", role: .cancel, action: onCancel)
 
-                Button("Approve & Run") {
-                    onApprove()
+                    Button("Approve & Run") {
+                        onApprove()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(task.plan?.steps.isEmpty ?? true)
+                } else if task.phase == .executing || task.phase == .planning || task.phase == .architecting {
+                    Button("Stop", role: .destructive, action: onCancel)
+                } else {
+                    Button("Close", action: onClose)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(task.phase != .awaitingApproval || (task.plan?.steps.isEmpty ?? true))
             }
             .padding()
+        }
+    }
+
+    private var title: String {
+        switch task.phase {
+        case .architecting, .planning:
+            return "Generating Plan"
+        case .awaitingApproval:
+            return "Review Plan"
+        case .executing:
+            return "Executing Plan"
+        case .completed:
+            return "Plan Complete"
+        case .failed:
+            return "Plan Failed"
+        case .cancelled:
+            return "Plan Cancelled"
+        }
+    }
+
+    private var statusText: String {
+        switch task.phase {
+        case .architecting:
+            return "Collecting context…"
+        case .planning:
+            return "Asking the model to build a plan…"
+        case .awaitingApproval:
+            return "Waiting for approval"
+        case .executing:
+            return "Executing…"
+        case .completed:
+            return "Completed"
+        case .failed:
+            return "Finished with errors"
+        case .cancelled:
+            return "Cancelled"
         }
     }
 }

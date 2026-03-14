@@ -25,6 +25,7 @@ struct ExecutionPlan: Codable, Identifiable, Sendable {
         case executing
         case completed
         case failed
+        case cancelled
     }
 
     init(

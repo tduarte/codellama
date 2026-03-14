@@ -29,6 +29,7 @@ struct AgentTask: Codable, Identifiable, Sendable {
         case executing
         case completed
         case failed
+        case cancelled
     }
 
     init(
@@ -64,6 +65,7 @@ struct TimelineEvent: Codable, Identifiable, Sendable {
         case toolResult
         case error
         case completed
+        case cancelled
     }
 
     init(

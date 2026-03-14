@@ -29,6 +29,7 @@ final class MCPServerConnection {
     // MARK: - Private
 
     private var process: Process?
+    private var processManager: MCPProcessManager?
 
     // MARK: - Init
 
@@ -39,38 +40,45 @@ final class MCPServerConnection {
     // MARK: - Connect
 
     /// Spawn the server process and establish an MCP connection over stdio.
-    func connect(processManager: MCPProcessManager) async throws {
+    func connect(
+        processManager: MCPProcessManager,
+        onUnexpectedTermination: (@Sendable (Int32) -> Void)? = nil
+    ) async throws {
         connectionError = nil
+        self.processManager = processManager
 
-        let (proc, stdinPipe, stdoutPipe) = try processManager.spawn(
-            serverName: config.name,
-            command: config.command,
-            arguments: config.arguments,
-            environment: config.environment
-        )
-        self.process = proc
+        do {
+            let (proc, stdinPipe, stdoutPipe) = try processManager.spawn(
+                serverName: config.name,
+                command: config.command,
+                arguments: config.arguments,
+                environment: config.environment,
+                onUnexpectedExit: onUnexpectedTermination
+            )
+            self.process = proc
 
-        // Bridge Foundation Pipe FileHandles to System FileDescriptors
-        let inputFD = FileDescriptor(rawValue: stdoutPipe.fileHandleForReading.fileDescriptor)
-        let outputFD = FileDescriptor(rawValue: stdinPipe.fileHandleForWriting.fileDescriptor)
+            // Bridge Foundation Pipe FileHandles to System FileDescriptors
+            let inputFD = FileDescriptor(rawValue: stdoutPipe.fileHandleForReading.fileDescriptor)
+            let outputFD = FileDescriptor(rawValue: stdinPipe.fileHandleForWriting.fileDescriptor)
 
-        // Create the transport using the pipes' FileDescriptors
-        let transport = StdioTransport(input: inputFD, output: outputFD)
+            // Create the transport using the pipes' FileDescriptors
+            let transport = StdioTransport(input: inputFD, output: outputFD)
 
-        // Create and connect the MCP client
-        let mcpClient = Client(name: "CodeLlama", version: "1.0.0")
-        _ = try await mcpClient.connect(transport: transport)
-        self.client = mcpClient
+            // Create and connect the MCP client
+            let mcpClient = Client(name: "CodeLlama", version: "1.0.0")
+            _ = try await mcpClient.connect(transport: transport)
+            self.client = mcpClient
 
-        // Populate the tool list — not all servers support tools
-        let toolsResult = try? await mcpClient.listTools()
-        self.availableTools = toolsResult?.tools ?? []
-
-        // Attempt to list resources (not all servers support this)
-        let resourcesResult = try? await mcpClient.listResources()
-        self.availableResources = resourcesResult?.resources ?? []
-
-        isConnected = true
+            try await refreshCapabilities()
+            isConnected = true
+        } catch {
+            connectionError = error.localizedDescription
+            isConnected = false
+            client = nil
+            process = nil
+            processManager.terminate(serverName: config.name)
+            throw error
+        }
     }
 
     // MARK: - Disconnect
@@ -81,9 +89,22 @@ final class MCPServerConnection {
             await client.disconnect()
         }
         client = nil
-        process?.terminate()
+        processManager?.terminate(serverName: config.name)
         process = nil
         isConnected = false
+        connectionError = nil
+        availableTools = []
+        availableResources = []
+    }
+
+    func handleUnexpectedTermination(exitCode: Int32) async {
+        if let client {
+            await client.disconnect()
+        }
+        client = nil
+        process = nil
+        isConnected = false
+        connectionError = "Process exited unexpectedly with status \(exitCode)."
         availableTools = []
         availableResources = []
     }
@@ -147,6 +168,16 @@ final class MCPServerConnection {
             if let blob = item.blob { return "[blob: \(blob.prefix(20))...]" }
             return nil
         }.joined(separator: "\n")
+    }
+
+    private func refreshCapabilities() async throws {
+        guard let client else { return }
+
+        let toolsResult = try? await client.listTools()
+        self.availableTools = toolsResult?.tools ?? []
+
+        let resourcesResult = try? await client.listResources()
+        self.availableResources = resourcesResult?.resources ?? []
     }
 }
 

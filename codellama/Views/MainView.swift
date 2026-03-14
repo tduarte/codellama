@@ -97,17 +97,19 @@ struct MainView: View {
             }
             .sheet(isPresented: Binding(
                 get: { agentViewModel.showPlanTimeline },
-                set: { if !$0 { agentViewModel.cancel() } }
+                set: { if !$0 { agentViewModel.dismissTask() } }
             )) {
                 if let task = agentViewModel.currentTask {
                     PlanTimelineView(
                         task: task,
                         onApprove: { Task { await agentViewModel.approve() } },
-                        onCancel: { agentViewModel.cancel() }
+                        onCancel: { agentViewModel.cancel() },
+                        onClose: { agentViewModel.dismissTask() }
                     )
                     .frame(minWidth: 500, minHeight: 400)
                 }
             }
+            .interactiveDismissDisabled(agentViewModel.isRunning)
             .sheet(isPresented: $showSkills) {
                 SkillListView(skillViewModel: skillViewModel)
                     .environment(appState)
