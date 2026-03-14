@@ -10,9 +10,12 @@ import SwiftData
 
 @main
 struct codellamaApp: App {
+    @State private var appState = AppState()
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Conversation.self,
+            ChatMessage.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,8 +28,16 @@ struct codellamaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainView(chatViewModel: ChatViewModel(modelContext: sharedModelContainer.mainContext))
+                .environment(appState)
+                .task { await appState.startup() }
+                .frame(minWidth: 700, minHeight: 500)
         }
         .modelContainer(sharedModelContainer)
+
+        Settings {
+            SettingsView()
+                .environment(appState)
+        }
     }
 }
