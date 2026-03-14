@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		15300F162F65F83D00B23B84 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = AA000001AAAA000100000001 /* Defaults */; };
+		15300F172F65F83D00B23B84 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = BB000002BBBB000200000002 /* MCP */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		15300DF22F65EFB900B23B84 /* codellama.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = codellama.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +28,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				15300F172F65F83D00B23B84 /* MCP in Frameworks */,
+				15300F162F65F83D00B23B84 /* Defaults in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,6 +73,7 @@
 			name = codellama;
 			packageProductDependencies = (
 				AA000001AAAA000100000001 /* Defaults */,
+				BB000002BBBB000200000002 /* MCP */,
 			);
 			productName = codellama;
 			productReference = 15300DF22F65EFB900B23B84 /* codellama.app */;
@@ -97,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AA000002AAAA000200000001 /* XCRemoteSwiftPackageReference "Defaults" */,
+				BB000001BBBB000100000001 /* XCRemoteSwiftPackageReference "swift-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 15300DF32F65EFB900B23B84 /* Products */;
@@ -345,6 +354,14 @@
 				minimumVersion = 9.0.0;
 			};
 		};
+		BB000001BBBB000100000001 /* XCRemoteSwiftPackageReference "swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -352,6 +369,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AA000002AAAA000200000001 /* XCRemoteSwiftPackageReference "Defaults" */;
 			productName = Defaults;
+		};
+		BB000002BBBB000200000002 /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB000001BBBB000100000001 /* XCRemoteSwiftPackageReference "swift-sdk" */;
+			productName = MCP;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

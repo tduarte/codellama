@@ -14,7 +14,12 @@ struct SettingsView: View {
                 .tabItem {
                     Label("General", systemImage: "gear")
                 }
+
+            MCPServerSettingsView()
+                .tabItem {
+                    Label("MCP Servers", systemImage: "server.rack")
+                }
         }
-        .frame(width: 450, height: 300)
+        .frame(width: 500, height: 420)
     }
 }

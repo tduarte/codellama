@@ -5,6 +5,10 @@ import Defaults
 @MainActor
 @Observable
 final class AppState {
+
+    // MARK: - MCP
+
+    let mcpHost = MCPHost()
     enum Status: Equatable {
         case checking
         case ollamaNotFound
@@ -24,7 +28,7 @@ final class AppState {
         set { Defaults[.defaultModel] = newValue }
     }
 
-    func startup() async {
+    func startup(modelContext: ModelContext? = nil) async {
         status = .checking
 
         // 1. Check if Ollama binary exists
@@ -64,6 +68,17 @@ final class AppState {
             status = .ready
         } catch {
             status = .error("Failed to fetch models: \(error.localizedDescription)")
+            return
+        }
+
+        // 4. Connect enabled MCP servers from SwiftData
+        if let ctx = modelContext {
+            let descriptor = FetchDescriptor<MCPServerConfig>()
+            if let configs = try? ctx.fetch(descriptor) {
+                for config in configs where config.isEnabled {
+                    try? await mcpHost.connect(config: config)
+                }
+            }
         }
     }
 
@@ -84,7 +99,7 @@ final class AppState {
     }
 
     func shutdown() async {
-        // Will be expanded in Phase 2 to disconnect MCP servers
+        await mcpHost.disconnectAll()
     }
 
     private func findOllamaBinary() -> String? {

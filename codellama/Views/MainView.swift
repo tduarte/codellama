@@ -11,6 +11,7 @@ struct MainView: View {
     @Environment(AppState.self) private var appState
 
     var chatViewModel: ChatViewModel
+    var agentViewModel: AgentViewModel
 
     var body: some View {
         switch appState.status {
@@ -75,6 +76,19 @@ struct MainView: View {
                         systemImage: "bubble.left.and.bubble.right",
                         description: Text("Choose a conversation from the sidebar or create a new one.")
                     )
+                }
+            }
+            .sheet(isPresented: Binding(
+                get: { agentViewModel.showPlanTimeline },
+                set: { if !$0 { agentViewModel.cancel() } }
+            )) {
+                if let task = agentViewModel.currentTask {
+                    PlanTimelineView(
+                        task: task,
+                        onApprove: { Task { await agentViewModel.approve() } },
+                        onCancel: { agentViewModel.cancel() }
+                    )
+                    .frame(minWidth: 500, minHeight: 400)
                 }
             }
         }

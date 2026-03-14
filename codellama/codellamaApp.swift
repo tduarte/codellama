@@ -16,6 +16,7 @@ struct codellamaApp: App {
         let schema = Schema([
             Conversation.self,
             ChatMessage.self,
+            MCPServerConfig.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -28,10 +29,16 @@ struct codellamaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainView(chatViewModel: ChatViewModel(modelContext: sharedModelContainer.mainContext))
-                .environment(appState)
-                .task { await appState.startup() }
-                .frame(minWidth: 700, minHeight: 500)
+            MainView(
+                chatViewModel: ChatViewModel(modelContext: sharedModelContainer.mainContext),
+                agentViewModel: AgentViewModel(
+                    ollamaClient: appState.ollamaClient ?? OllamaClient(),
+                    mcpHost: appState.mcpHost
+                )
+            )
+            .environment(appState)
+            .task { await appState.startup(modelContext: sharedModelContainer.mainContext) }
+            .frame(minWidth: 700, minHeight: 500)
         }
         .modelContainer(sharedModelContainer)
 
