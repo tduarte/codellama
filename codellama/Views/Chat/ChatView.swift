@@ -12,6 +12,7 @@ struct ChatView: View {
 
     @Bindable var conversation: Conversation
     @Bindable var chatViewModel: ChatViewModel
+    @State private var isTargetingFileDrop = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,6 +22,19 @@ struct ChatView: View {
         }
         .navigationTitle(conversation.title)
         .navigationSubtitle(conversation.model)
+        .dropDestination(for: URL.self) { items, _ in
+            Task {
+                await chatViewModel.addDroppedFiles(items.filter(\.isFileURL))
+            }
+            return true
+        } isTargeted: { isTargetingFileDrop = $0 }
+        .alert("Chat Error", isPresented: errorBinding) {
+            Button("OK") {
+                chatViewModel.error = nil
+            }
+        } message: {
+            Text(chatViewModel.error ?? "Unknown error")
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Picker("Model", selection: modelSelection) {
@@ -70,12 +84,19 @@ struct ChatView: View {
     private var chatInput: some View {
         ChatInputView(
             text: $chatViewModel.inputText,
+            attachments: chatViewModel.pendingAttachments,
+            canSend: chatViewModel.canSendCurrentInput,
             isGenerating: chatViewModel.isGenerating,
+            isProcessingDrop: chatViewModel.isProcessingAttachmentDrop,
+            isDropTargeted: isTargetingFileDrop,
             onSend: {
                 Task { await chatViewModel.send(appState: appState) }
             },
             onStop: {
                 chatViewModel.stopGenerating()
+            },
+            onRemoveAttachment: { attachment in
+                chatViewModel.removePendingAttachment(attachment)
             }
         )
         .padding()
@@ -85,6 +106,17 @@ struct ChatView: View {
 
     private var sortedMessages: [ChatMessage] {
         conversation.messages.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private var errorBinding: Binding<Bool> {
+        Binding(
+            get: { chatViewModel.error != nil },
+            set: { newValue in
+                if !newValue {
+                    chatViewModel.error = nil
+                }
+            }
+        )
     }
 
     private var modelSelection: Binding<String> {

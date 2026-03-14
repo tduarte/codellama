@@ -197,17 +197,25 @@ enum OllamaRole: String, Codable, Sendable {
 struct OllamaChatMessage: Codable, Sendable {
     let role: OllamaRole
     let content: String
+    let images: [String]?
     let toolCalls: [OllamaToolCall]?
 
     enum CodingKeys: String, CodingKey {
         case role
         case content
+        case images
         case toolCalls = "tool_calls"
     }
 
-    init(role: OllamaRole, content: String, toolCalls: [OllamaToolCall]? = nil) {
+    init(
+        role: OllamaRole,
+        content: String,
+        images: [String]? = nil,
+        toolCalls: [OllamaToolCall]? = nil
+    ) {
         self.role = role
         self.content = content
+        self.images = images
         self.toolCalls = toolCalls
     }
 }
@@ -328,6 +336,35 @@ struct OllamaModelDetails: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case format
         case family
+        case parameterSize = "parameter_size"
+        case quantizationLevel = "quantization_level"
+    }
+}
+
+// MARK: - OllamaShow
+
+struct OllamaShowRequest: Codable, Sendable {
+    let model: String
+}
+
+struct OllamaShowResponse: Codable, Sendable {
+    let capabilities: [String]?
+    let details: OllamaModelExtendedDetails?
+}
+
+struct OllamaModelExtendedDetails: Codable, Sendable {
+    let parentModel: String?
+    let format: String?
+    let family: String?
+    let families: [String]?
+    let parameterSize: String?
+    let quantizationLevel: String?
+
+    enum CodingKeys: String, CodingKey {
+        case parentModel = "parent_model"
+        case format
+        case family
+        case families
         case parameterSize = "parameter_size"
         case quantizationLevel = "quantization_level"
     }

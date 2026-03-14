@@ -9,16 +9,25 @@ import SwiftUI
 
 struct ChatInputView: View {
     @Binding var text: String
+    let attachments: [PendingChatAttachment]
+    var canSend: Bool
     var isGenerating: Bool
+    var isProcessingDrop: Bool
+    var isDropTargeted: Bool
     var onSend: () -> Void
     var onStop: () -> Void
+    var onRemoveAttachment: (PendingChatAttachment) -> Void
 
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            textEditor
-            actionButton
+        VStack(alignment: .leading, spacing: 10) {
+            attachmentTray
+
+            HStack(alignment: .bottom, spacing: 8) {
+                textEditor
+                actionButton
+            }
         }
     }
 
@@ -28,7 +37,7 @@ struct ChatInputView: View {
         ZStack(alignment: .topLeading) {
             // Placeholder
             if text.isEmpty {
-                Text("Send a message...")
+                Text("Send a message or drop files...")
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 10)
@@ -48,7 +57,7 @@ struct ChatInputView: View {
                         return .ignored // Allow newline
                     }
                     // Send on plain Enter
-                    if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isGenerating {
+                    if canSend && !isGenerating {
                         onSend()
                     }
                     return .handled
@@ -88,10 +97,77 @@ struct ChatInputView: View {
                         .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
-                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(!canSend)
                 .help("Send message")
             }
         }
         .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    private var attachmentTray: some View {
+        if isDropTargeted || isProcessingDrop || !attachments.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                if isDropTargeted {
+                    Label("Drop files to attach them to the next message", systemImage: "tray.and.arrow.down")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.tint)
+                } else if isProcessingDrop {
+                    Label("Reading dropped files…", systemImage: "doc.badge.plus")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                } else if !attachments.isEmpty {
+                    Text("\(attachments.count) file\(attachments.count == 1 ? "" : "s") attached")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                if !attachments.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(attachments) { attachment in
+                                HStack(spacing: 8) {
+                                    Image(systemName: attachment.kind.systemImage)
+                                        .foregroundStyle(.tint)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(attachment.displayName)
+                                            .font(.subheadline.weight(.medium))
+                                            .lineLimit(1)
+
+                                        Text(attachment.detailText)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Button {
+                                        onRemoveAttachment(attachment)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(.secondary.opacity(0.08))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(isDropTargeted ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isDropTargeted ? Color.accentColor : Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: isDropTargeted ? [6] : []))
+            )
+        }
     }
 }

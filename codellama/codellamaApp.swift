@@ -45,6 +45,14 @@ struct codellamaApp: App {
             .frame(minWidth: 700, minHeight: 500)
         }
         .modelContainer(sharedModelContainer)
+        .commands {
+            CommandMenu("Commands") {
+                Button("Command Palette") {
+                    appState.isCommandPalettePresented = true
+                }
+                .keyboardShortcut("k", modifiers: .command)
+            }
+        }
 
         Settings {
             SettingsView(skillViewModel: SkillViewModel(modelContext: sharedModelContainer.mainContext))
