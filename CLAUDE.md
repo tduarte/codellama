@@ -39,10 +39,10 @@ Open `codellama.xcodeproj` in Xcode and press **Cmd+R** to build and run.
 |---|---|---|
 | Phase 1: Streaming chat + Ollama client | ✅ Done | `2d97a2c` |
 | Phase 2: MCP integration + Agentic loop | ✅ Done | `5430746` |
-| Phase 3: Skills Engine + RAG | 🔲 Next | — |
+| Phase 3: Skills Engine + RAG | ✅ Done | local worktree changes |
 | Phase 4: Multi-server orchestration + Polish | 🔲 Future | — |
 
-> Full plan with file-level status: `~/.claude/plans/encapsulated-booping-globe.md`
+> Full plan with file-level status: `docs/encapsulated-booping-globe.md`
 
 ---
 
@@ -130,8 +130,8 @@ UserDefaults (via `Defaults` package, keys in `Extensions/Defaults+Keys.swift`):
 |---|---|---|
 | `Defaults` | `github.com/sindresorhus/Defaults` ≥9.0.0 | Type-safe UserDefaults |
 | `MCP` | `github.com/modelcontextprotocol/swift-sdk` ≥0.9.0 | Official MCP client + STDIO transport |
-| `Textual` | `github.com/gonzalezreal/textual` | Markdown rendering *(Phase 3, not yet added)* |
-| `HighlighterSwift` | `github.com/smittytone/HighlighterSwift` ≥3.0.0 | Code syntax highlighting *(Phase 3, not yet added)* |
+| `Textual` | `github.com/gonzalezreal/textual` | Structured markdown rendering |
+| `HighlighterSwift` | `github.com/smittytone/HighlighterSwift` ≥3.0.0 | Skipped for current Phase 3 scope |
 
 ---
 
@@ -181,16 +181,15 @@ Tools from different servers are registered as `serverName__toolName` (double un
 
 ---
 
-## What to Work on Next (Phase 3)
+## What to Work on Next (Phase 4)
 
-See `~/.claude/plans/encapsulated-booping-globe.md` for detailed spec. Summary:
+See `docs/encapsulated-booping-globe.md` for detailed status. Current Phase 4 candidates:
 
-1. **`Models/Skill.swift`** — new SwiftData `@Model`, add to schema in `codellamaApp.swift`
-2. **`Services/Embedding/EmbeddingService.swift`** — POST `/api/embeddings` to Ollama
-3. **`Services/Embedding/VectorStore.swift`** — in-memory cosine similarity over `[Float]` vectors
-4. **`Services/Embedding/ChunkIndexer.swift`** — splits text, indexes via `EmbeddingService`
-5. **`ViewModels/SkillViewModel.swift`** — SwiftData CRUD for Skills
-6. **`Views/Skills/SkillListView.swift`** + **`SkillComposerView.swift`** — Skills UI
-7. Update **`ContextBuilder`** to query `VectorStore` for relevant chunks
-8. Add **Textual** + **HighlighterSwift** SPM dependencies
-9. Upgrade **`StreamingTextView`** to use Textual for rich markdown + code highlighting
+1. Parallel tool execution in `MCPHost` via `TaskGroup`
+2. Auto-restart crashed MCP servers in `MCPProcessManager`
+3. Server health status indicators in the UI
+4. SQLite-backed persistent vector store
+5. Cmd+K command palette
+6. Drag-and-drop files into chat context
+7. Conversation search and export
+8. Debounced UI updates and request cancellation
