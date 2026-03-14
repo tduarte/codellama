@@ -7,6 +7,8 @@
 
 import Foundation
 import SwiftUI
+import SwiftData
+import Defaults
 
 /// Orchestrates the full agentic loop: context gathering → plan generation
 /// → user approval → plan execution.
@@ -21,6 +23,9 @@ final class AgentLoop {
 
     let ollamaClient: OllamaClient
     let mcpHost: MCPHost
+    let modelContext: ModelContext
+    let embeddingService: EmbeddingService
+    let vectorStore: VectorStore
 
     // MARK: - State
 
@@ -29,9 +34,12 @@ final class AgentLoop {
 
     // MARK: - Init
 
-    init(ollamaClient: OllamaClient, mcpHost: MCPHost) {
+    init(ollamaClient: OllamaClient, mcpHost: MCPHost, modelContext: ModelContext) {
         self.ollamaClient = ollamaClient
         self.mcpHost = mcpHost
+        self.modelContext = modelContext
+        self.embeddingService = EmbeddingService(ollamaClient: ollamaClient)
+        self.vectorStore = VectorStore()
     }
 
     // MARK: - Run
@@ -48,9 +56,33 @@ final class AgentLoop {
         var task = AgentTask(prompt: prompt, phase: .architecting)
         currentTask = task
 
+        let skills = fetchSkills()
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let invokedSkill = resolveInvokedSkill(from: trimmedPrompt, skills: skills) {
+            let plan = makePlan(for: invokedSkill, prompt: prompt)
+            task.plan = plan
+            task.timeline.append(TimelineEvent(
+                type: .planGenerated,
+                summary: "Loaded saved skill '\(invokedSkill.name)'",
+                detail: invokedSkill.descriptionText
+            ))
+            task.phase = .awaitingApproval
+            currentTask = task
+            isRunning = false
+            return
+        }
+
         // Phase 1: Gather context from MCP resources
-        let contextBuilder = ContextBuilder(mcpHost: mcpHost)
-        let contextMap = await contextBuilder.buildContextMap(for: prompt)
+        let contextBuilder = ContextBuilder(
+            mcpHost: mcpHost,
+            embeddingService: embeddingService,
+            vectorStore: vectorStore
+        )
+        let contextMap = await contextBuilder.buildContextMap(
+            for: prompt,
+            embeddingModel: Defaults[.embeddingModel]
+        )
 
         task.phase = .planning
         task.timeline.append(TimelineEvent(
@@ -65,6 +97,7 @@ final class AgentLoop {
         let plan = try await generator.generatePlan(
             prompt: prompt,
             context: contextMap,
+            skillSummaries: skills.map(skillSummary(for:)),
             model: model
         )
 
@@ -129,5 +162,57 @@ final class AgentLoop {
         currentTask?.phase = .failed
         currentTask?.completedAt = .now
         isRunning = false
+    }
+
+    private func fetchSkills() -> [Skill] {
+        let descriptor = FetchDescriptor<Skill>(sortBy: [
+            SortDescriptor(\Skill.updatedAt, order: .reverse),
+            SortDescriptor(\Skill.createdAt, order: .reverse)
+        ])
+
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func resolveInvokedSkill(from prompt: String, skills: [Skill]) -> Skill? {
+        guard prompt.lowercased().hasPrefix("/skill ") else { return nil }
+
+        let requestedName = prompt.dropFirst("/skill ".count).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !requestedName.isEmpty else { return nil }
+
+        return skills.first { $0.name.compare(requestedName, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
+    }
+
+    private func makePlan(for skill: Skill, prompt: String) -> ExecutionPlan {
+        let steps = skill.toolSequence.enumerated().map { index, toolCall in
+            AgentStep(
+                index: index,
+                description: "Run skill step \(index + 1): \(toolCall.toolName)",
+                toolCall: toolCall,
+                status: .pending
+            )
+        }
+
+        let contextSummary = [
+            "Invoked saved skill: \(skill.name)",
+            skill.descriptionText.isEmpty ? nil : skill.descriptionText,
+            "Invoke saved skills with `/skill <name>`."
+        ]
+            .compactMap { $0 }
+            .joined(separator: "\n")
+
+        return ExecutionPlan(
+            intent: prompt,
+            contextSummary: contextSummary,
+            steps: steps,
+            status: .awaitingApproval
+        )
+    }
+
+    private func skillSummary(for skill: Skill) -> String {
+        let firstTools = skill.toolSequence.prefix(3).map { "\($0.serverName)__\($0.toolName)" }
+        let toolPreview = firstTools.isEmpty ? "no tools yet" : firstTools.joined(separator: ", ")
+        let suffix = skill.toolSequence.count > 3 ? ", …" : ""
+        let description = skill.descriptionText.isEmpty ? "No description." : skill.descriptionText
+        return "- \(skill.name): \(description) Tools: \(toolPreview)\(suffix)"
     }
 }

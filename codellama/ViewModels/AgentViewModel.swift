@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 /// View model that bridges the `AgentLoop` to SwiftUI views.
 ///
@@ -29,8 +30,12 @@ final class AgentViewModel {
 
     // MARK: - Init
 
-    init(ollamaClient: OllamaClient, mcpHost: MCPHost) {
-        self.agentLoop = AgentLoop(ollamaClient: ollamaClient, mcpHost: mcpHost)
+    init(ollamaClient: OllamaClient, mcpHost: MCPHost, modelContext: ModelContext) {
+        self.agentLoop = AgentLoop(
+            ollamaClient: ollamaClient,
+            mcpHost: mcpHost,
+            modelContext: modelContext
+        )
     }
 
     // MARK: - Actions

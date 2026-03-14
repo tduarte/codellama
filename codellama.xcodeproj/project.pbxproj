@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		15300F162F65F83D00B23B84 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = AA000001AAAA000100000001 /* Defaults */; };
 		15300F172F65F83D00B23B84 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = BB000002BBBB000200000002 /* MCP */; };
+		CC000001CCCC000100000001 /* Textual in Frameworks */ = {isa = PBXBuildFile; productRef = CC000002CCCC000200000002 /* Textual */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC000001CCCC000100000001 /* Textual in Frameworks */,
 				15300F172F65F83D00B23B84 /* MCP in Frameworks */,
 				15300F162F65F83D00B23B84 /* Defaults in Frameworks */,
 			);
@@ -74,6 +76,7 @@
 			packageProductDependencies = (
 				AA000001AAAA000100000001 /* Defaults */,
 				BB000002BBBB000200000002 /* MCP */,
+				CC000002CCCC000200000002 /* Textual */,
 			);
 			productName = codellama;
 			productReference = 15300DF22F65EFB900B23B84 /* codellama.app */;
@@ -106,6 +109,7 @@
 			packageReferences = (
 				AA000002AAAA000200000001 /* XCRemoteSwiftPackageReference "Defaults" */,
 				BB000001BBBB000100000001 /* XCRemoteSwiftPackageReference "swift-sdk" */,
+				CC000003CCCC000300000003 /* XCRemoteSwiftPackageReference "textual" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 15300DF32F65EFB900B23B84 /* Products */;
@@ -362,6 +366,14 @@
 				minimumVersion = 0.9.0;
 			};
 		};
+		CC000003CCCC000300000003 /* XCRemoteSwiftPackageReference "textual" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/textual.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -374,6 +386,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = BB000001BBBB000100000001 /* XCRemoteSwiftPackageReference "swift-sdk" */;
 			productName = MCP;
+		};
+		CC000002CCCC000200000002 /* Textual */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CC000003CCCC000300000003 /* XCRemoteSwiftPackageReference "textual" */;
+			productName = Textual;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

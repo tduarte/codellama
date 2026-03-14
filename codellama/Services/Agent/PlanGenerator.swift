@@ -24,8 +24,16 @@ struct PlanGenerator {
     func generatePlan(
         prompt: String,
         context: ContextBuilder.ContextMap,
+        skillSummaries: [String],
         model: String
     ) async throws -> ExecutionPlan {
+        let skillsSection: String
+        if skillSummaries.isEmpty {
+            skillsSection = "Saved skills:\nNone"
+        } else {
+            skillsSection = "Saved skills:\n" + skillSummaries.joined(separator: "\n")
+        }
+
         let systemMessage = OllamaChatMessage(
             role: .system,
             content: """
@@ -37,6 +45,8 @@ struct PlanGenerator {
 
             Context:
             \(context.summary)
+
+            \(skillsSection)
             """
         )
 

@@ -10,6 +10,7 @@ import Defaults
 
 struct OllamaSettingsView: View {
     @State private var host: String = Defaults[.ollamaHost]
+    @State private var embeddingModel: String = Defaults[.embeddingModel]
     @State private var systemPrompt: String = Defaults[.systemPrompt]
     @State private var connectionResult: ConnectionTestResult?
     @State private var isTesting: Bool = false
@@ -23,6 +24,9 @@ struct OllamaSettingsView: View {
         Form {
             Section("Ollama Server") {
                 TextField("Host URL", text: $host)
+                    .textFieldStyle(.roundedBorder)
+
+                TextField("Embedding Model", text: $embeddingModel)
                     .textFieldStyle(.roundedBorder)
 
                 HStack {
@@ -83,6 +87,7 @@ struct OllamaSettingsView: View {
 
     private func save() {
         Defaults[.ollamaHost] = host
+        Defaults[.embeddingModel] = embeddingModel
         Defaults[.systemPrompt] = systemPrompt
     }
 
