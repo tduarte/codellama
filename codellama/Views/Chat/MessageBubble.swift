@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ImageIO
 
 struct MessageBubble: View {
     let message: ChatMessage
@@ -19,6 +20,7 @@ struct MessageBubble: View {
             VStack(alignment: message.role == "user" ? .trailing : .leading, spacing: 4) {
                 roleLabel
                 imageAttachmentSummary
+                imageAttachmentPreviews
 
                 if message.isStreaming && message.content.isEmpty {
                     typingIndicator
@@ -73,6 +75,50 @@ struct MessageBubble: View {
         }
     }
 
+    @ViewBuilder
+    private var imageAttachmentPreviews: some View {
+        if !message.imageAttachments.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(message.imageAttachments) { attachment in
+                        if let image = decodeImage(from: attachment.base64Data) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Image(decorative: image, scale: 1.0)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 140, height: 100)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                Text(attachment.fileName)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .frame(width: 140, alignment: .leading)
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Image(systemName: "photo.slash")
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+                                Text(attachment.fileName)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                            .frame(width: 140, height: 100, alignment: .topLeading)
+                            .padding(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(.secondary.opacity(0.08))
+                            )
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
     private var bubbleBackground: some ShapeStyle {
         switch message.role {
         case "user":
@@ -100,5 +146,11 @@ struct MessageBubble: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func decodeImage(from base64: String) -> CGImage? {
+        guard let data = Data(base64Encoded: base64) else { return nil }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 }
