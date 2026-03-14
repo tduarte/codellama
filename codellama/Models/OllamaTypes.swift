@@ -237,10 +237,10 @@ struct OllamaModel: Codable, Sendable, Identifiable {
     var id: String { name }
 
     let name: String
-    let modifiedAt: String
-    let size: Int
-    let digest: String
-    let details: OllamaModelDetails
+    let modifiedAt: String?
+    let size: Int?
+    let digest: String?
+    let details: OllamaModelDetails?
 
     enum CodingKeys: String, CodingKey {
         case name
@@ -253,10 +253,10 @@ struct OllamaModel: Codable, Sendable, Identifiable {
 
 /// Detailed metadata about a model's architecture and quantization.
 struct OllamaModelDetails: Codable, Sendable {
-    let format: String
-    let family: String
-    let parameterSize: String
-    let quantizationLevel: String
+    let format: String?
+    let family: String?
+    let parameterSize: String?
+    let quantizationLevel: String?
 
     enum CodingKeys: String, CodingKey {
         case format
