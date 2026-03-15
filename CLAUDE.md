@@ -42,8 +42,6 @@ Open `codellama.xcodeproj` in Xcode and press **Cmd+R** to build and run.
 | Phase 3: Skills Engine + RAG | ✅ Done | local worktree changes |
 | Phase 4: Multi-server orchestration + Polish | 🔲 Future | — |
 
-> Full plan with file-level status: `docs/encapsulated-booping-globe.md`
-
 ---
 
 ## Architecture
@@ -189,7 +187,7 @@ Tools from different servers are registered as `serverName__toolName` (double un
 
 ## What to Work on Next (Phase 4)
 
-See `docs/encapsulated-booping-globe.md` for detailed status. Current Phase 4 candidates:
+Current Phase 4 candidates:
 
 1. Parallel tool execution in `MCPHost` via `TaskGroup`
 2. Auto-restart crashed MCP servers in `MCPProcessManager`
