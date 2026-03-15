@@ -178,7 +178,7 @@ struct ChatView: View {
     let chatViewModel = ChatViewModel(modelContext: container.mainContext)
 
     return ChatView(conversation: conversation, chatViewModel: chatViewModel)
-        .environment(AppState())
+        .environment(AppState.preview)
         .modelContainer(container)
         .frame(width: 700, height: 520)
 }

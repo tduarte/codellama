@@ -291,7 +291,7 @@ struct MainView: View {
         for: Conversation.self, ChatMessage.self, MCPServerConfig.self, Skill.self,
         configurations: config
     )
-    let appState = AppState()
+    let appState = AppState.preview
     let chatViewModel = ChatViewModel(modelContext: container.mainContext)
     let skillViewModel = SkillViewModel(modelContext: container.mainContext)
     let agentViewModel = AgentViewModel(
@@ -300,7 +300,7 @@ struct MainView: View {
         modelContext: container.mainContext,
         contextIndexManager: appState.contextIndexManager
     )
-    MainView(chatViewModel: chatViewModel, agentViewModel: agentViewModel, skillViewModel: skillViewModel)
+    return MainView(chatViewModel: chatViewModel, agentViewModel: agentViewModel, skillViewModel: skillViewModel)
         .environment(appState)
         .modelContainer(container)
         .frame(width: 900, height: 620)

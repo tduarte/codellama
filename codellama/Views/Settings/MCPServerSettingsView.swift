@@ -30,52 +30,41 @@ struct MCPServerSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             if servers.isEmpty {
-                VStack {
-                    VStack(alignment: .leading, spacing: 16) {
-                        ContentUnavailableView {
-                            Label("No MCP Servers", systemImage: "server.rack")
-                                .labelStyle(.titleAndIcon)
-                        } description: {
-                            Text("Connect your first MCP server to give the agent safe, tool-based access to local and remote capabilities.")
-                        } actions: {
-                            HStack(spacing: 10) {
-                                Button("Add Server") {
-                                    prepareForAdd()
-                                    showingAddSheet = true
-                                }
-                                .buttonStyle(.borderedProminent)
-
-                                Link("MCP Quickstart", destination: URL(string: "https://modelcontextprotocol.io/quickstart")!)
+                VStack(alignment: .leading, spacing: 16) {
+                    ContentUnavailableView {
+                        Label("No MCP Servers", systemImage: "server.rack")
+                            .labelStyle(.titleAndIcon)
+                    } description: {
+                        Text("Connect your first MCP server to give the agent safe, tool-based access to local and remote capabilities.")
+                    } actions: {
+                        HStack(spacing: 10) {
+                            Button("Add Server") {
+                                prepareForAdd()
+                                showingAddSheet = true
                             }
-                        }
-                        .frame(maxWidth: .infinity)
+                            .buttonStyle(.borderedProminent)
 
-                        Divider()
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Getting started")
-                                .font(.subheadline.weight(.semibold))
-
-                            Label("Choose a server package (filesystem, GitHub, database, etc.).", systemImage: "1.circle")
-                                .foregroundStyle(.secondary)
-                            Label("Set the launch command and arguments.", systemImage: "2.circle")
-                                .foregroundStyle(.secondary)
-                            Label("Enable the server and verify it shows as connected.", systemImage: "3.circle")
-                                .foregroundStyle(.secondary)
+                            Link("MCP Quickstart", destination: URL(string: "https://modelcontextprotocol.io/quickstart")!)
                         }
                     }
-                    .padding(24)
-                    .frame(maxWidth: 520)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(.regularMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(.quaternary, lineWidth: 1)
-                    )
+                    .frame(maxWidth: .infinity)
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Getting started")
+                            .font(.subheadline.weight(.semibold))
+
+                        Label("Choose a server package (filesystem, GitHub, database, etc.).", systemImage: "1.circle")
+                            .foregroundStyle(.secondary)
+                        Label("Set the launch command and arguments.", systemImage: "2.circle")
+                            .foregroundStyle(.secondary)
+                        Label("Enable the server and verify it shows as connected.", systemImage: "3.circle")
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .frame(maxHeight: .infinity)
+                .padding(24)
+                .frame(maxWidth: 520, maxHeight: .infinity)
             } else {
                 List {
                     ForEach(servers) { server in
@@ -84,22 +73,25 @@ struct MCPServerSettingsView: View {
                     .onDelete(perform: deleteServers)
                 }
                 .listStyle(.inset)
+                .overlay(alignment: .bottomTrailing) {
+                    Button {
+                        prepareForAdd()
+                        showingAddSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 28, height: 28)
+                            .background(.regularMaterial, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(12)
+                }
             }
         }
         .controlSize(.small)
         .environment(\.defaultMinListRowHeight, 30)
         .onAppear {
             registerServers()
-        }
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    prepareForAdd()
-                    showingAddSheet = true
-                } label: {
-                    Label("Add Server", systemImage: "plus")
-                }
-            }
         }
         .sheet(isPresented: $showingAddSheet) {
             NavigationStack {
@@ -307,7 +299,7 @@ struct MCPServerSettingsView: View {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: MCPServerConfig.self, configurations: config)
     MCPServerSettingsView()
-        .environment(AppState())
+        .environment(AppState.preview)
         .modelContainer(container)
         .frame(width: 700, height: 480)
 }
@@ -325,7 +317,7 @@ struct MCPServerSettingsView: View {
     container.mainContext.insert(gh)
 
     return MCPServerSettingsView()
-        .environment(AppState())
+        .environment(AppState.preview)
         .modelContainer(container)
         .frame(width: 700, height: 300)
 }

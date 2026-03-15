@@ -141,7 +141,7 @@ struct SidebarView: View {
     return NavigationStack {
         SidebarView(chatViewModel: chatViewModel)
     }
-    .environment(AppState())
+    .environment(AppState.preview)
     .modelContainer(container)
     .frame(width: 280, height: 500)
 }

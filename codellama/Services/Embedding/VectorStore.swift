@@ -48,6 +48,12 @@ actor VectorStore {
         }
     }
 
+    /// In-memory only store — no disk I/O. Used by Xcode previews.
+    init(inMemory: Bool) {
+        self.databaseURL = URL(fileURLWithPath: "/dev/null")
+        self.database = nil
+    }
+
     deinit {
         if let database {
             sqlite3_close(database)
