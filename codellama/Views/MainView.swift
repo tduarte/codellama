@@ -79,28 +79,46 @@ struct MainView: View {
             NavigationSplitView {
                 SidebarView(chatViewModel: chatViewModel)
             } detail: {
-                if let conversation = chatViewModel.selectedConversation {
-                    ChatView(conversation: conversation, chatViewModel: chatViewModel)
-                } else {
-                    ContentUnavailableView(
-                        "Select a Conversation",
-                        systemImage: "bubble.left.and.bubble.right",
-                        description: Text("Choose a conversation from the sidebar or create a new one.")
-                    )
+                Group {
+                    if let conversation = chatViewModel.selectedConversation {
+                        ChatView(conversation: conversation, chatViewModel: chatViewModel)
+                    } else {
+                        ContentUnavailableView(
+                            "Select a Conversation",
+                            systemImage: "bubble.left.and.bubble.right",
+                            description: Text("Choose a conversation from the sidebar or create a new one.")
+                        )
+                    }
                 }
-            }
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        presentCommandPalette()
-                    } label: {
-                        Label("Commands", systemImage: "command")
+                .toolbar {
+                    ToolbarItem {
+                        if let conversation = chatViewModel.selectedConversation {
+                            Button {
+                                chatViewModel.exportConversation(conversation)
+                            } label: {
+                                Label("Export Conversation", systemImage: "square.and.arrow.up")
+                            }
+                        }
                     }
 
-                    Button {
-                        showSkills = true
-                    } label: {
-                        Label("Skills", systemImage: "wand.and.stars")
+                    ToolbarSpacer(.fixed)
+
+                    ToolbarItem {
+                        Button {
+                            presentCommandPalette()
+                        } label: {
+                            Label("Commands", systemImage: "command")
+                        }
+                    }
+
+                    ToolbarSpacer(.fixed)
+
+                    ToolbarItem {
+                        Button {
+                            showSkills.toggle()
+                        } label: {
+                            Label("Skills", systemImage: "wand.and.stars")
+                        }
                     }
                 }
             }
@@ -119,13 +137,10 @@ struct MainView: View {
                 }
             }
             .interactiveDismissDisabled(agentViewModel.isRunning)
-            .sheet(isPresented: $showSkills) {
-                SkillListView(skillViewModel: skillViewModel)
-                    .environment(appState)
-                    .frame(minWidth: 980, minHeight: 680)
-                    .background(.regularMaterial)
-                    .presentationBackground(.thickMaterial)
+            .inspector(isPresented: $showSkills) {
+                SkillInspectorView(skillViewModel: skillViewModel)
             }
+            .inspectorColumnWidth(min: 320, ideal: 380, max: 500)
             .sheet(
                 isPresented: Binding(
                     get: { appState.isCommandPalettePresented },
@@ -169,7 +184,7 @@ struct MainView: View {
                 category: "Quick Action",
                 keywords: ["skills", "tools", "automation"]
             ) {
-                showSkills = true
+                showSkills.toggle()
             },
             CommandPaletteItem(
                 id: "open-settings",

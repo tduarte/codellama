@@ -21,6 +21,7 @@ struct ChatView: View {
             messageList
             Divider()
             chatInput
+            modelPicker
         }
         .navigationTitle(conversation.title)
         .navigationSubtitle(conversation.model)
@@ -36,23 +37,6 @@ struct ChatView: View {
             }
         } message: {
             Text(chatViewModel.error ?? "Unknown error")
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Picker("Model", selection: modelSelection) {
-                    if !isCurrentModelAvailable {
-                        Text("\(conversation.model) (Unavailable)")
-                            .tag(conversation.model)
-                    }
-
-                    ForEach(appState.availableModels) { model in
-                        Text(model.name).tag(model.name)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(minWidth: 180)
-                .disabled(chatViewModel.isGenerating)
-            }
         }
     }
 
@@ -112,6 +96,30 @@ struct ChatView: View {
             }
         )
         .padding()
+    }
+
+    // MARK: - Model Picker
+
+    private var modelPicker: some View {
+        HStack {
+            Picker("Model", selection: modelSelection) {
+                if !isCurrentModelAvailable {
+                    Text("\(conversation.model) (Unavailable)")
+                        .tag(conversation.model)
+                }
+
+                ForEach(appState.availableModels) { model in
+                    Text(model.name).tag(model.name)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .disabled(chatViewModel.isGenerating)
+
+            Spacer()
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
     }
 
     // MARK: - Helpers

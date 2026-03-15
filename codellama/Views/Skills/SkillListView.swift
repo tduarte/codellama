@@ -21,15 +21,13 @@ struct SkillListView: View {
                     detailPane
                 }
             } else {
-                NavigationSplitView {
+                HStack(spacing: 0) {
                     sidebarPane
-                } detail: {
+                    Divider()
                     detailPane
                 }
-                .navigationSplitViewColumnWidth(min: 280, ideal: 340)
             }
         }
-        .controlSize(.small)
         .environment(\.defaultMinListRowHeight, 30)
         .onAppear {
             skillViewModel.fetchSkills()
@@ -45,76 +43,33 @@ struct SkillListView: View {
 
     private var sidebarPane: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center) {
-                    Text("Skills")
-                        .font(.headline)
-                    Spacer()
+            HStack {
+                Text("Skills")
+                    .font(.title2.weight(.semibold))
+                Spacer()
 
-                    if isSettingsContext {
-                        Button {
-                            skillViewModel.createSkill()
-                        } label: {
-                            Label("Create Skill", systemImage: "plus")
-                        }
-                        .buttonStyle(.borderedProminent)
-                    } else {
-                        Button {
-                            skillViewModel.createSkill()
-                        } label: {
-                            Label("New Skill", systemImage: "plus")
-                        }
-
-                        Button(role: .destructive) {
-                            if let selectedSkill = skillViewModel.selectedSkill {
-                                skillViewModel.deleteSkill(selectedSkill)
-                            }
-                        } label: {
-                            Label("Delete Skill", systemImage: "trash")
-                        }
-                        .disabled(skillViewModel.selectedSkill == nil)
+                if isSettingsContext {
+                    Button {
+                        skillViewModel.createSkill()
+                    } label: {
+                        Label("Create Skill", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Button {
+                        skillViewModel.createSkill()
+                    } label: {
+                        Label("New Skill", systemImage: "plus")
                     }
                 }
-
-                Text("Create reusable MCP tool sequences for faster agent workflows.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
+            .padding(.vertical, 12)
 
             Divider()
 
             ZStack {
-                List(selection: $skillViewModel.selectedSkill) {
-                    ForEach(skillViewModel.skills) { skill in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(skill.name)
-                                .font(.headline)
-
-                            Text(skill.descriptionText.isEmpty ? "No description" : skill.descriptionText)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                        }
-                        .padding(.vertical, 4)
-                        .tag(skill)
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                skillViewModel.deleteSkill(skill)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                    .onDelete { offsets in
-                        for offset in offsets {
-                            skillViewModel.deleteSkill(skillViewModel.skills[offset])
-                        }
-                    }
-                }
-                .listStyle(.sidebar)
+                skillList
 
                 if skillViewModel.skills.isEmpty {
                     ContentUnavailableView(
@@ -124,6 +79,23 @@ struct SkillListView: View {
                     )
                 }
             }
+
+            if !isSettingsContext && !skillViewModel.skills.isEmpty {
+                Divider()
+                HStack {
+                    Spacer()
+                    Button(role: .destructive) {
+                        if let selectedSkill = skillViewModel.selectedSkill {
+                            skillViewModel.deleteSkill(selectedSkill)
+                        }
+                    } label: {
+                        Label("Delete Skill", systemImage: "trash")
+                    }
+                    .disabled(skillViewModel.selectedSkill == nil)
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+            }
         }
         .frame(minWidth: 300, idealWidth: 320)
         .background(.regularMaterial)
@@ -132,6 +104,37 @@ struct SkillListView: View {
                 .fill(.quaternary.opacity(0.7))
                 .frame(width: 1)
         }
+    }
+
+    private var skillList: some View {
+        List(selection: $skillViewModel.selectedSkill) {
+            ForEach(skillViewModel.skills) { skill in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(skill.name)
+                        .font(.headline)
+
+                    Text(skill.descriptionText.isEmpty ? "No description" : skill.descriptionText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                .padding(.vertical, 4)
+                .tag(skill)
+                .contextMenu {
+                    Button(role: .destructive) {
+                        skillViewModel.deleteSkill(skill)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+            .onDelete { offsets in
+                for offset in offsets {
+                    skillViewModel.deleteSkill(skillViewModel.skills[offset])
+                }
+            }
+        }
+        .listStyle(.sidebar)
     }
 
     @ViewBuilder

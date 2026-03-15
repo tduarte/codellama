@@ -52,19 +52,8 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .searchable(text: $chatViewModel.searchText, prompt: "Search conversations")
         .navigationTitle("Conversations")
         .toolbar {
-            ToolbarItem(placement: .automatic) {
-                if let selectedConversation = chatViewModel.selectedConversation {
-                    Button {
-                        chatViewModel.exportConversation(selectedConversation)
-                    } label: {
-                        Label("Export Conversation", systemImage: "square.and.arrow.up")
-                    }
-                }
-            }
-
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     chatViewModel.createConversation(model: appState.selectedModel)
