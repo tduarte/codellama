@@ -313,6 +313,12 @@ struct OllamaModel: Codable, Sendable, Identifiable {
 
     let name: String
     let modifiedAt: String?
+
+    /// Friendly display name derived from the model name (e.g. "Gemma3" from "gemma3:latest").
+    var displayName: String {
+        let base = name.split(separator: ":").first.map(String.init) ?? name
+        return base.prefix(1).uppercased() + base.dropFirst()
+    }
     let size: Int?
     let digest: String?
     let details: OllamaModelDetails?
