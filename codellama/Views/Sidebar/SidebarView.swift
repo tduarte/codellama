@@ -52,6 +52,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .searchable(text: $chatViewModel.searchText, placement: .sidebar)
         .navigationTitle("Conversations")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -71,9 +72,11 @@ struct SidebarView: View {
     @ViewBuilder
     private func serverRow(_ state: MCPServerRuntimeState) -> some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(statusColor(for: state))
-                .frame(width: 8, height: 8)
+            Image(systemName: statusSymbol(for: state))
+                .foregroundStyle(statusColor(for: state))
+                .symbolRenderingMode(.hierarchical)
+                .font(.subheadline)
+                .frame(width: 16)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.serverName)
@@ -99,6 +102,19 @@ struct SidebarView: View {
         .padding(.vertical, 2)
     }
 
+    private func statusSymbol(for state: MCPServerRuntimeState) -> String {
+        switch state.lifecycle {
+        case .connected:
+            return "circle.fill"
+        case .connecting, .restarting:
+            return "circle.dotted"
+        case .failed:
+            return "exclamationmark.circle.fill"
+        case .disabled, .disconnected:
+            return "circle"
+        }
+    }
+
     private func statusColor(for state: MCPServerRuntimeState) -> Color {
         switch state.lifecycle {
         case .connected:
@@ -108,7 +124,7 @@ struct SidebarView: View {
         case .failed:
             return .red
         case .disabled, .disconnected:
-            return Color.secondary.opacity(0.5)
+            return .secondary
         }
     }
 }

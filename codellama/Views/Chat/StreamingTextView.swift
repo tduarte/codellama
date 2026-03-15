@@ -21,14 +21,15 @@ struct StreamingTextView: View {
                 .textual.textSelection(.enabled)
 
             if isStreaming {
-                Text("|")
-                    .foregroundStyle(.secondary)
+                Rectangle()
+                    .fill(.tint)
+                    .frame(width: 2, height: 18)
                     .opacity(cursorVisible ? 1 : 0)
                     .onAppear {
-                        withAnimation(.easeInOut(duration: 0.5).repeatForever()) {
+                        withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
                             cursorVisible.toggle()
                         }
-                }
+                    }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

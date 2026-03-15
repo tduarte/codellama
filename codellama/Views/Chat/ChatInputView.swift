@@ -14,6 +14,10 @@ struct ChatInputView: View {
     var isGenerating: Bool
     var isProcessingDrop: Bool
     var isDropTargeted: Bool
+    var selectedModel: String
+    var availableModels: [OllamaModel]
+    var isCurrentModelAvailable: Bool
+    var modelSelection: Binding<String>
     var onSend: () -> Void
     var onStop: () -> Void
     var onRemoveAttachment: (PendingChatAttachment) -> Void
@@ -25,17 +29,46 @@ struct ChatInputView: View {
             attachmentTray
 
             HStack(alignment: .bottom, spacing: 8) {
+                modelPickerButton
                 textEditor
                 actionButton
             }
         }
     }
 
+    // MARK: - Model Picker
+
+    private var modelPickerButton: some View {
+        Menu {
+            if !isCurrentModelAvailable {
+                Text("\(selectedModel) (Unavailable)")
+            }
+
+            ForEach(availableModels) { model in
+                Button(model.name) {
+                    modelSelection.wrappedValue = model.name
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(selectedModel)
+                    .font(.caption)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .disabled(isGenerating)
+        .padding(.bottom, 8)
+    }
+
     // MARK: - Text Editor
 
     private var textEditor: some View {
         ZStack(alignment: .topLeading) {
-            // Placeholder
             if text.isEmpty {
                 Text("Send a message or drop files...")
                     .foregroundStyle(.tertiary)
@@ -54,9 +87,8 @@ struct ChatInputView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .onKeyPress(keys: [.return], phases: .down) { keyPress in
                     if keyPress.modifiers.contains(.shift) {
-                        return .ignored // Allow newline
+                        return .ignored
                     }
-                    // Send on plain Enter
                     if canSend && !isGenerating {
                         onSend()
                     }
@@ -65,13 +97,12 @@ struct ChatInputView: View {
         }
         .padding(4)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(.background)
-                .shadow(color: .primary.opacity(0.1), radius: 1)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(.quaternary, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(.separator, lineWidth: 0.5)
         )
         .onAppear {
             isFocused = true
@@ -81,26 +112,15 @@ struct ChatInputView: View {
     // MARK: - Action Button
 
     private var actionButton: some View {
-        Group {
-            if isGenerating {
-                Button(action: onStop) {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.red)
-                }
-                .buttonStyle(.plain)
-                .help("Stop generating")
-            } else {
-                Button(action: onSend) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.tint)
-                }
-                .buttonStyle(.plain)
-                .disabled(!canSend)
-                .help("Send message")
-            }
+        Button(action: isGenerating ? onStop : onSend) {
+            Image(systemName: isGenerating ? "stop.circle.fill" : "arrow.up.circle.fill")
+                .font(.title2)
+                .foregroundStyle(isGenerating ? AnyShapeStyle(.red) : AnyShapeStyle(.tint))
+                .contentTransition(.symbolEffect(.replace))
         }
+        .buttonStyle(.plain)
+        .disabled(!isGenerating && !canSend)
+        .help(isGenerating ? "Stop generating" : "Send message")
         .padding(.bottom, 8)
     }
 
@@ -152,7 +172,7 @@ struct ChatInputView: View {
                                 .padding(.vertical, 8)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(.secondary.opacity(0.08))
+                                        .fill(.fill.quaternary)
                                 )
                             }
                         }
@@ -162,11 +182,11 @@ struct ChatInputView: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(isDropTargeted ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.08))
+                    .fill(.fill.quaternary)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(isDropTargeted ? Color.accentColor : Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: isDropTargeted ? [6] : []))
+                    .stroke(isDropTargeted ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.separator), style: StrokeStyle(lineWidth: isDropTargeted ? 1 : 0.5, dash: isDropTargeted ? [6] : []))
             )
         }
     }
@@ -174,6 +194,7 @@ struct ChatInputView: View {
 
 #Preview("Empty") {
     @Previewable @State var text = ""
+    @Previewable @State var model = "llama3.1:8b"
     ChatInputView(
         text: $text,
         attachments: [],
@@ -181,6 +202,10 @@ struct ChatInputView: View {
         isGenerating: false,
         isProcessingDrop: false,
         isDropTargeted: false,
+        selectedModel: "llama3.1:8b",
+        availableModels: [],
+        isCurrentModelAvailable: true,
+        modelSelection: $model,
         onSend: {},
         onStop: {},
         onRemoveAttachment: { _ in }
@@ -191,6 +216,7 @@ struct ChatInputView: View {
 
 #Preview("With Text") {
     @Previewable @State var text = "How do I reverse a linked list in Swift?"
+    @Previewable @State var model = "llama3.1:8b"
     ChatInputView(
         text: $text,
         attachments: [],
@@ -198,6 +224,10 @@ struct ChatInputView: View {
         isGenerating: false,
         isProcessingDrop: false,
         isDropTargeted: false,
+        selectedModel: "llama3.1:8b",
+        availableModels: [],
+        isCurrentModelAvailable: true,
+        modelSelection: $model,
         onSend: {},
         onStop: {},
         onRemoveAttachment: { _ in }
@@ -208,6 +238,7 @@ struct ChatInputView: View {
 
 #Preview("Generating") {
     @Previewable @State var text = ""
+    @Previewable @State var model = "llama3.1:8b"
     ChatInputView(
         text: $text,
         attachments: [],
@@ -215,6 +246,10 @@ struct ChatInputView: View {
         isGenerating: true,
         isProcessingDrop: false,
         isDropTargeted: false,
+        selectedModel: "llama3.1:8b",
+        availableModels: [],
+        isCurrentModelAvailable: true,
+        modelSelection: $model,
         onSend: {},
         onStop: {},
         onRemoveAttachment: { _ in }
@@ -225,6 +260,7 @@ struct ChatInputView: View {
 
 #Preview("Drop Target") {
     @Previewable @State var text = ""
+    @Previewable @State var model = "llama3.1:8b"
     ChatInputView(
         text: $text,
         attachments: [],
@@ -232,6 +268,10 @@ struct ChatInputView: View {
         isGenerating: false,
         isProcessingDrop: false,
         isDropTargeted: true,
+        selectedModel: "llama3.1:8b",
+        availableModels: [],
+        isCurrentModelAvailable: true,
+        modelSelection: $model,
         onSend: {},
         onStop: {},
         onRemoveAttachment: { _ in }

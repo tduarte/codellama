@@ -17,15 +17,13 @@ struct ChatView: View {
     @State private var didInitialScroll = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            messageList
-            Divider()
-            chatInput
-            modelPicker
-        }
-        .navigationTitle(conversation.title)
-        .navigationSubtitle(conversation.model)
-        .dropDestination(for: URL.self) { items, _ in
+        messageList
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                chatInput
+            }
+            .navigationTitle(conversation.title)
+            .navigationSubtitle(conversation.model)
+            .dropDestination(for: URL.self) { items, _ in
             Task {
                 await chatViewModel.addDroppedFiles(items.filter(\.isFileURL))
             }
@@ -85,6 +83,10 @@ struct ChatView: View {
             isGenerating: chatViewModel.isGenerating,
             isProcessingDrop: chatViewModel.isProcessingAttachmentDrop,
             isDropTargeted: isTargetingFileDrop,
+            selectedModel: conversation.model,
+            availableModels: appState.availableModels,
+            isCurrentModelAvailable: isCurrentModelAvailable,
+            modelSelection: modelSelection,
             onSend: {
                 Task { await chatViewModel.send(appState: appState) }
             },
@@ -95,31 +97,9 @@ struct ChatView: View {
                 chatViewModel.removePendingAttachment(attachment)
             }
         )
-        .padding()
-    }
-
-    // MARK: - Model Picker
-
-    private var modelPicker: some View {
-        HStack {
-            Picker("Model", selection: modelSelection) {
-                if !isCurrentModelAvailable {
-                    Text("\(conversation.model) (Unavailable)")
-                        .tag(conversation.model)
-                }
-
-                ForEach(appState.availableModels) { model in
-                    Text(model.name).tag(model.name)
-                }
-            }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .disabled(chatViewModel.isGenerating)
-
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
     }
 
     // MARK: - Helpers
@@ -161,7 +141,7 @@ struct ChatView: View {
             return
         }
 
-        withAnimation(.easeOut(duration: 0.2)) {
+        withAnimation(.spring(duration: 0.3, bounce: 0.1)) {
             proxy.scrollTo(lastMessage.id, anchor: .bottom)
         }
     }
