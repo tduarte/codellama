@@ -4,7 +4,18 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Build & Run
 
-> **Claude Code users:** The Xcode MCP is available and preferred over the CLI below. See `CLAUDE.md` for the full Xcode MCP workflow (`BuildProject`, `GetBuildLog`, `RunAllTests`, `RenderPreview`, `DocumentationSearch`, etc.).
+### Xcode MCP (preferred)
+
+Use the Xcode MCP as the default workflow for any code change in this repository.
+
+- After any code change, use the Xcode MCP to build the project and inspect errors or warnings before finishing.
+- Use the Xcode MCP debugging surface first when investigating regressions or build failures.
+- For front-end or SwiftUI changes, render the relevant preview or run the app and capture a screenshot through the Xcode MCP before finishing.
+- When implementing an app pattern, framework feature, or platform behavior for the first time in this codebase, check Apple's documentation and Human Interface Guidelines first.
+
+> **Claude Code users:** See `CLAUDE.md` for the detailed Xcode MCP workflow (`BuildProject`, `GetBuildLog`, `RunAllTests`, `RenderPreview`, `DocumentationSearch`, etc.).
+
+### Fallback: xcodebuild CLI
 
 ```bash
 # Build (standard)
@@ -26,7 +37,7 @@ xcodebuild clean -project codellama.xcodeproj -scheme codellama
 open <worktree-path>/codellama.xcodeproj
 ```
 
-Open `codellama.xcodeproj` in Xcode and press **Cmd+R** to build and run.
+Always open the `.xcodeproj` from the current worktree, not from another checkout. Open `codellama.xcodeproj` in Xcode and press **Cmd+R** to build and run.
 
 **Requirements:**
 - Xcode 26+ with macOS 26.2 SDK

@@ -8,6 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The Xcode MCP is available and should be used instead of the `xcodebuild` CLI whenever possible. It provides real-time integration with the running Xcode instance.
 
+Use it as the default workflow for any code change in this repository:
+
+- After any change, build with the Xcode MCP and inspect errors and warnings before finishing.
+- Use Xcode MCP diagnostics first when debugging regressions, runtime issues, or build failures.
+- For front-end or SwiftUI changes, render the relevant preview or run the app and capture a screenshot through Xcode before finishing.
+- When implementing an app behavior, UI pattern, or framework API for the first time in this project, check Apple's documentation and Human Interface Guidelines first.
+- When working in a git worktree, always open the Xcode project from that specific worktree so the user can run the exact checkout you changed.
+
 **Workflow:**
 
 1. **Get the tab identifier** (required by most tools):
@@ -39,17 +47,25 @@ The Xcode MCP is available and should be used instead of the `xcodebuild` CLI wh
    RenderPreview(tabIdentifier: "windowtab1", ...)    // render a preview without launching the app
    ```
 
-6. **Apple documentation:**
+6. **Capture UI evidence for front-end changes:**
+   ```
+   RenderPreview(tabIdentifier: "windowtab1", ...)    // preferred for SwiftUI previews
+   ```
+   If the preview is insufficient, run the app and capture a screenshot of the affected UI with the available Xcode MCP screenshot or simulator capture tooling before finishing.
+
+7. **Apple documentation and HIG:**
    ```
    DocumentationSearch(query: "SwiftData @Model")
+   DocumentationSearch(query: "Apple Human Interface Guidelines settings")
    ```
+   Do this before first-time implementations of platform features, controls, interaction patterns, or persistence/UI architecture choices.
 
-7. **Execute a Swift snippet** (useful for quick API checks):
+8. **Execute a Swift snippet** (useful for quick API checks):
    ```
    ExecuteSnippet(...)
    ```
 
-8. **List current issues in the navigator:**
+9. **List current issues in the navigator:**
    ```
    XcodeListNavigatorIssues(tabIdentifier: "windowtab1")
    ```
@@ -80,7 +96,7 @@ xcodebuild clean -project codellama.xcodeproj -scheme codellama
 open <worktree-path>/codellama.xcodeproj
 ```
 
-Open `codellama.xcodeproj` in Xcode and press **Cmd+R** to build and run.
+Always open the `.xcodeproj` from the current worktree, not from another checkout. Open `codellama.xcodeproj` in Xcode and press **Cmd+R** to build and run.
 
 **Requirements:**
 - Xcode 26+ with macOS 26.2 SDK
