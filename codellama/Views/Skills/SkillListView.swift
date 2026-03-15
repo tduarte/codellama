@@ -178,7 +178,7 @@ struct SkillListView: View {
     let container = try! ModelContainer(for: Skill.self, configurations: config)
     let skillViewModel = SkillViewModel(modelContext: container.mainContext)
     SkillListView(skillViewModel: skillViewModel, isSettingsContext: true)
-        .environment(AppState())
+        .environment(AppState.preview)
         .modelContainer(container)
         .frame(width: 780, height: 480)
 }
@@ -203,7 +203,7 @@ struct SkillListView: View {
     skillViewModel.selectedSkill = skill1
 
     return SkillListView(skillViewModel: skillViewModel, isSettingsContext: true)
-        .environment(AppState())
+        .environment(AppState.preview)
         .modelContainer(container)
         .frame(width: 780, height: 480)
 }

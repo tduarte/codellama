@@ -35,6 +35,6 @@ struct SettingsView: View {
     let container = try! ModelContainer(for: Skill.self, MCPServerConfig.self, configurations: config)
     let skillViewModel = SkillViewModel(modelContext: container.mainContext)
     SettingsView(skillViewModel: skillViewModel)
-        .environment(AppState())
+        .environment(AppState.preview)
         .modelContainer(container)
 }

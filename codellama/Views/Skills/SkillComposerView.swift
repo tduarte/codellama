@@ -267,7 +267,7 @@ private struct StepEditorCard: View {
     skillViewModel.selectedSkill = skill
 
     return SkillComposerView(skill: skill, skillViewModel: skillViewModel)
-        .environment(AppState())
+        .environment(AppState.preview)
         .modelContainer(container)
         .frame(width: 600, height: 680)
 }

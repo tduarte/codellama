@@ -8,8 +8,29 @@ final class AppState {
 
     // MARK: - MCP
 
-    let mcpHost = MCPHost()
-    let contextIndexManager = ContextIndexManager()
+    let mcpHost: MCPHost
+    let contextIndexManager: ContextIndexManager
+
+    init() {
+        self.mcpHost = MCPHost()
+        self.contextIndexManager = ContextIndexManager()
+    }
+
+    /// Lightweight instance for Xcode previews — uses an in-memory vector
+    /// store and skips all disk I/O so previews render instantly.
+    static var preview: AppState {
+        let state = AppState(forPreview: true)
+        state.status = .ready
+        return state
+    }
+
+    private init(forPreview: Bool) {
+        self.mcpHost = MCPHost()
+        self.contextIndexManager = ContextIndexManager(
+            vectorStore: VectorStore(inMemory: true)
+        )
+    }
+
     enum Status: Equatable {
         case checking
         case ollamaNotFound
