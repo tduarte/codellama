@@ -4,6 +4,62 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Run
 
+### Xcode MCP (preferred)
+
+The Xcode MCP is available and should be used instead of the `xcodebuild` CLI whenever possible. It provides real-time integration with the running Xcode instance.
+
+**Workflow:**
+
+1. **Get the tab identifier** (required by most tools):
+   ```
+   XcodeListWindows → returns tabIdentifier (e.g. "windowtab1")
+   ```
+
+2. **Build the project:**
+   ```
+   BuildProject(tabIdentifier: "windowtab1")
+   ```
+
+3. **Check for errors after building:**
+   ```
+   GetBuildLog(tabIdentifier: "windowtab1", severity: "error")
+   GetBuildLog(tabIdentifier: "windowtab1", severity: "warning")   // for warnings too
+   ```
+   You can also filter by file glob: `GetBuildLog(..., glob: "**/*.swift")`
+
+4. **Run tests:**
+   ```
+   GetTestList(tabIdentifier: "windowtab1")          // list all tests
+   RunAllTests(tabIdentifier: "windowtab1")           // run all
+   RunSomeTests(tabIdentifier: "windowtab1", ...)     // run specific tests
+   ```
+
+5. **SwiftUI previews:**
+   ```
+   RenderPreview(tabIdentifier: "windowtab1", ...)    // render a preview without launching the app
+   ```
+
+6. **Apple documentation:**
+   ```
+   DocumentationSearch(query: "SwiftData @Model")
+   ```
+
+7. **Execute a Swift snippet** (useful for quick API checks):
+   ```
+   ExecuteSnippet(...)
+   ```
+
+8. **List current issues in the navigator:**
+   ```
+   XcodeListNavigatorIssues(tabIdentifier: "windowtab1")
+   ```
+
+The Xcode MCP also provides file tools (`XcodeRead`, `XcodeWrite`, `XcodeUpdate`, `XcodeGrep`, `XcodeGlob`, `XcodeLS`, `XcodeMV`, `XcodeRM`, `XcodeMakeDir`) but the standard Claude Code tools (`Read`, `Edit`, `Grep`, `Glob`) are equivalent and preferred for file I/O.
+
+### Fallback: xcodebuild CLI
+
+Use these only when Xcode is not open or the MCP is unavailable:
+
 ```bash
 # Build (standard)
 xcodebuild -project codellama.xcodeproj -scheme codellama \

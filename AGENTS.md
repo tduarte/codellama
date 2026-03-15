@@ -4,6 +4,8 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Build & Run
 
+> **Claude Code users:** The Xcode MCP is available and preferred over the CLI below. See `CLAUDE.md` for the full Xcode MCP workflow (`BuildProject`, `GetBuildLog`, `RunAllTests`, `RenderPreview`, `DocumentationSearch`, etc.).
+
 ```bash
 # Build (standard)
 xcodebuild -project codellama.xcodeproj -scheme codellama \
