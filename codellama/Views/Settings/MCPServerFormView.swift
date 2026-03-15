@@ -17,61 +17,56 @@ struct MCPServerFormView: View {
     @Binding var arguments: String  // Space-separated; split on save
     @Binding var isEnabled: Bool
 
+    var title: String = "MCP Server"
     var onSave: () -> Void
     var onCancel: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Section("Server Identity") {
-                    TextField("Name", text: $name, prompt: Text("e.g. filesystem"))
-                    Toggle("Enabled", isOn: $isEnabled)
+        Form {
+            Section("Server Identity") {
+                TextField("Name", text: $name, prompt: Text("e.g. filesystem"))
+                Toggle("Enabled", isOn: $isEnabled)
+            }
+
+            Section("Process") {
+                TextField("Command", text: $command, prompt: Text("e.g. npx"))
+                TextField(
+                    "Arguments",
+                    text: $arguments,
+                    prompt: Text("e.g. @modelcontextprotocol/server-filesystem /tmp")
+                )
+                Text("Space-separated arguments passed to the command.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Presets") {
+                Button("Use Filesystem Preset") {
+                    name = "filesystem"
+                    command = "npx"
+                    arguments = "@modelcontextprotocol/server-filesystem /tmp"
                 }
 
-                Section("Process") {
-                    TextField("Command", text: $command, prompt: Text("e.g. npx"))
-                    TextField(
-                        "Arguments",
-                        text: $arguments,
-                        prompt: Text("e.g. @modelcontextprotocol/server-filesystem /tmp")
-                    )
-                    Text("Space-separated arguments passed to the command.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Presets") {
-                    Button("Filesystem Server") {
-                        name = "filesystem"
-                        command = "npx"
-                        arguments = "@modelcontextprotocol/server-filesystem /tmp"
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.blue)
-
-                    Button("GitHub Server") {
-                        name = "github"
-                        command = "npx"
-                        arguments = "@modelcontextprotocol/server-github"
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.blue)
+                Button("Use GitHub Preset") {
+                    name = "github"
+                    command = "npx"
+                    arguments = "@modelcontextprotocol/server-github"
                 }
             }
-            .formStyle(.grouped)
-
-            Divider()
-
-            HStack {
+        }
+        .formStyle(.grouped)
+        .controlSize(.small)
+        .navigationTitle(title)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel", role: .cancel, action: onCancel)
+            }
 
-                Spacer()
-
+            ToolbarItem(placement: .confirmationAction) {
                 Button("Save", action: onSave)
-                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
                     .disabled(name.isEmpty || command.isEmpty)
             }
-            .padding()
         }
     }
 }

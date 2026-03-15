@@ -37,6 +37,7 @@ struct CommandPaletteView: View {
 
     @FocusState private var isQueryFocused: Bool
     @State private var query: String = ""
+    private let maxRowSubtitleCharacters = 160
 
     private var filteredItems: [CommandPaletteItem] {
         items.filter { $0.matches(query: query) }
@@ -81,6 +82,7 @@ struct CommandPaletteView: View {
                     }
                     .padding(.vertical, 6)
                 }
+                .frame(maxHeight: 360)
             }
 
             Divider()
@@ -100,7 +102,14 @@ struct CommandPaletteView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
-        .frame(minWidth: 640, minHeight: 440)
+        .frame(
+            minWidth: 640,
+            idealWidth: 700,
+            maxWidth: 760,
+            minHeight: 440,
+            idealHeight: 520,
+            maxHeight: 560
+        )
         .onAppear {
             query = ""
             isQueryFocused = true
@@ -111,15 +120,17 @@ struct CommandPaletteView: View {
     private func row(for item: CommandPaletteItem, isSuggested: Bool) -> some View {
         HStack(spacing: 12) {
             Image(systemName: item.systemImage)
-                .font(.title3)
+                .font(.body.weight(.semibold))
                 .foregroundStyle(.tint)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(item.title)
-                        .font(.headline)
+                    Text(sanitizedSingleLine(item.title))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     if isSuggested {
                         Text("Top Match")
@@ -131,25 +142,40 @@ struct CommandPaletteView: View {
                     }
                 }
 
-                Text(item.subtitle)
-                    .font(.subheadline)
+                Text(sanitizedSubtitle(item.subtitle))
+                    .font(.subheadline.weight(.regular))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                    .truncationMode(.tail)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 16)
 
-            Text(item.category)
-                .font(.caption.weight(.medium))
+            Text(sanitizedSingleLine(item.category))
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(.quaternary.opacity(0.5), in: Capsule())
+                .padding(.vertical, 4)
+                .background(.quaternary.opacity(0.35), in: Capsule())
         }
         .contentShape(Rectangle())
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 10)
+        .frame(minHeight: 64, maxHeight: 78)
         .background(isSuggested ? Color.accentColor.opacity(0.06) : Color.clear)
+    }
+
+    private func sanitizedSubtitle(_ raw: String) -> String {
+        let collapsed = sanitizedSingleLine(raw)
+        guard collapsed.count > maxRowSubtitleCharacters else { return collapsed }
+        return String(collapsed.prefix(maxRowSubtitleCharacters)) + "..."
+    }
+
+    private func sanitizedSingleLine(_ raw: String) -> String {
+        raw
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func run(_ item: CommandPaletteItem) {

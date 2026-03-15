@@ -122,6 +122,8 @@ struct MainView: View {
                 SkillListView(skillViewModel: skillViewModel)
                     .environment(appState)
                     .frame(minWidth: 980, minHeight: 680)
+                    .background(.regularMaterial)
+                    .presentationBackground(.thickMaterial)
             }
             .sheet(
                 isPresented: Binding(

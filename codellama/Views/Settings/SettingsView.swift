@@ -12,21 +12,19 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            OllamaSettingsView()
-                .tabItem {
-                    Label("General", systemImage: "gear")
-                }
+            Tab("General", systemImage: "gear") {
+                OllamaSettingsView()
+            }
 
-            MCPServerSettingsView()
-                .tabItem {
-                    Label("MCP Servers", systemImage: "server.rack")
-                }
+            Tab("MCP Servers", systemImage: "server.rack") {
+                MCPServerSettingsView()
+            }
 
-            SkillListView(skillViewModel: skillViewModel)
-                .tabItem {
-                    Label("Skills", systemImage: "wand.and.stars")
-                }
+            Tab("Skills", systemImage: "wand.and.stars") {
+                SkillListView(skillViewModel: skillViewModel, isSettingsContext: true)
+            }
         }
-        .frame(width: 980, height: 680)
+        .scenePadding()
+        .frame(minWidth: 700, idealWidth: 780, minHeight: 480, idealHeight: 560)
     }
 }

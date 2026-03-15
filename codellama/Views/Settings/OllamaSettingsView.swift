@@ -12,11 +12,16 @@ import Defaults
 struct OllamaSettingsView: View {
     @Environment(AppState.self) private var appState
 
-    @State private var host: String = Defaults[.ollamaHost]
-    @State private var embeddingModel: String = Defaults[.embeddingModel]
-    @State private var systemPrompt: String = Defaults[.systemPrompt]
+    @AppStorage("ollamaHost") private var host: String = Defaults.Keys.ollamaHost.defaultValue
+    @AppStorage("embeddingModel") private var embeddingModel: String = Defaults.Keys.embeddingModel.defaultValue
+    @AppStorage("defaultModel") private var defaultModel: String = Defaults.Keys.defaultModel.defaultValue
+    @AppStorage("systemPrompt") private var systemPrompt: String = Defaults.Keys.systemPrompt.defaultValue
+    @AppStorage("streamResponses") private var streamResponses: Bool = Defaults.Keys.streamResponses.defaultValue
+
+    @State private var lastIndexedEmbeddingModel: String = Defaults[.embeddingModel]
     @State private var connectionResult: ConnectionTestResult?
     @State private var isTesting: Bool = false
+    @State private var reindexTask: Task<Void, Never>?
 
     enum ConnectionTestResult {
         case success
@@ -27,10 +32,8 @@ struct OllamaSettingsView: View {
         Form {
             Section("Ollama Server") {
                 TextField("Host URL", text: $host)
-                    .textFieldStyle(.roundedBorder)
 
                 TextField("Embedding Model", text: $embeddingModel)
-                    .textFieldStyle(.roundedBorder)
 
                 HStack {
                     Button("Test Connection") {
@@ -56,6 +59,28 @@ struct OllamaSettingsView: View {
                         }
                     }
                 }
+            }
+
+            Section("Chat Defaults") {
+                if appState.availableModels.isEmpty {
+                    TextField("Default Model", text: $defaultModel)
+                } else {
+                    Picker("Default Model", selection: $defaultModel) {
+                        if !appState.availableModels.contains(where: { $0.name == defaultModel }) {
+                            Text("\(defaultModel) (Unavailable)")
+                                .tag(defaultModel)
+                        }
+
+                        ForEach(appState.availableModels) { model in
+                            Text(model.name).tag(model.name)
+                        }
+                    }
+                }
+
+                Toggle("Stream responses", isOn: $streamResponses)
+                Text("When enabled, assistant responses render token-by-token during generation.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Default System Prompt") {
@@ -141,7 +166,7 @@ struct OllamaSettingsView: View {
                         Task {
                             await appState.contextIndexManager.reindexLocalFolders(
                                 using: appState.ollamaClient,
-                                embeddingModel: Defaults[.embeddingModel]
+                                embeddingModel: embeddingModel
                             )
                         }
                     }
@@ -155,33 +180,35 @@ struct OllamaSettingsView: View {
                         .textSelection(.enabled)
                 }
             }
-
-            HStack {
-                Spacer()
-                Button("Save") {
-                    save()
-                }
-                .buttonStyle(.borderedProminent)
-            }
         }
         .formStyle(.grouped)
-        .padding()
+        .controlSize(.small)
+        .environment(\.defaultMinListRowHeight, 30)
+        .onChange(of: embeddingModel) {
+            scheduleReindexForEmbeddingModel()
+        }
+        .onDisappear {
+            reindexTask?.cancel()
+        }
     }
 
     // MARK: - Actions
 
-    private func save() {
-        let previousEmbeddingModel = Defaults[.embeddingModel]
-        Defaults[.ollamaHost] = host
-        Defaults[.embeddingModel] = embeddingModel
-        Defaults[.systemPrompt] = systemPrompt
+    private func scheduleReindexForEmbeddingModel() {
+        guard embeddingModel != lastIndexedEmbeddingModel else { return }
 
-        if previousEmbeddingModel != embeddingModel {
-            Task {
-                await appState.contextIndexManager.reindexLocalFolders(
-                    using: appState.ollamaClient,
-                    embeddingModel: embeddingModel
-                )
+        reindexTask?.cancel()
+        let currentEmbeddingModel = embeddingModel
+        reindexTask = Task {
+            try? await Task.sleep(for: .milliseconds(800))
+            guard !Task.isCancelled else { return }
+
+            await appState.contextIndexManager.reindexLocalFolders(
+                using: appState.ollamaClient,
+                embeddingModel: currentEmbeddingModel
+            )
+            await MainActor.run {
+                lastIndexedEmbeddingModel = currentEmbeddingModel
             }
         }
     }
@@ -218,7 +245,7 @@ struct OllamaSettingsView: View {
             await appState.contextIndexManager.addFolder(
                 url.path(percentEncoded: false),
                 ollamaClient: appState.ollamaClient,
-                embeddingModel: Defaults[.embeddingModel]
+                embeddingModel: embeddingModel
             )
         }
     }

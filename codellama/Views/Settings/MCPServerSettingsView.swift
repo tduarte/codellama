@@ -30,16 +30,50 @@ struct MCPServerSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             if servers.isEmpty {
-                ContentUnavailableView {
-                    Label("No MCP Servers", systemImage: "server.rack")
-                } description: {
-                    Text("Add an MCP server to give the agent access to tools.")
-                } actions: {
-                    Button("Add Server") {
-                        prepareForAdd()
-                        showingAddSheet = true
+                VStack {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ContentUnavailableView {
+                            Label("No MCP Servers", systemImage: "server.rack")
+                                .labelStyle(.titleAndIcon)
+                        } description: {
+                            Text("Connect your first MCP server to give the agent safe, tool-based access to local and remote capabilities.")
+                        } actions: {
+                            HStack(spacing: 10) {
+                                Button("Add Server") {
+                                    prepareForAdd()
+                                    showingAddSheet = true
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                Link("MCP Quickstart", destination: URL(string: "https://modelcontextprotocol.io/quickstart")!)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Getting started")
+                                .font(.subheadline.weight(.semibold))
+
+                            Label("Choose a server package (filesystem, GitHub, database, etc.).", systemImage: "1.circle")
+                                .foregroundStyle(.secondary)
+                            Label("Set the launch command and arguments.", systemImage: "2.circle")
+                                .foregroundStyle(.secondary)
+                            Label("Enable the server and verify it shows as connected.", systemImage: "3.circle")
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .padding(24)
+                    .frame(maxWidth: 520)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(.regularMaterial)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(.quaternary, lineWidth: 1)
+                    )
                 }
                 .frame(maxHeight: .infinity)
             } else {
@@ -52,11 +86,10 @@ struct MCPServerSettingsView: View {
                 .listStyle(.inset)
             }
         }
+        .controlSize(.small)
+        .environment(\.defaultMinListRowHeight, 30)
         .onAppear {
-            appState.mcpHost.register(configs: servers)
-        }
-        .onChange(of: servers.map(\.name)) {
-            appState.mcpHost.register(configs: servers)
+            registerServers()
         }
         .toolbar {
             ToolbarItem {
@@ -69,37 +102,49 @@ struct MCPServerSettingsView: View {
             }
         }
         .sheet(isPresented: $showingAddSheet) {
-            MCPServerFormView(
-                name: $formName,
-                command: $formCommand,
-                arguments: $formArguments,
-                isEnabled: $formEnabled,
-                onSave: {
-                    saveNewServer()
-                    showingAddSheet = false
-                },
-                onCancel: {
-                    showingAddSheet = false
-                }
-            )
-            .frame(width: 480, height: 400)
+            NavigationStack {
+                MCPServerFormView(
+                    name: $formName,
+                    command: $formCommand,
+                    arguments: $formArguments,
+                    isEnabled: $formEnabled,
+                    title: "Add MCP Server",
+                    onSave: {
+                        saveNewServer()
+                        showingAddSheet = false
+                    },
+                    onCancel: {
+                        showingAddSheet = false
+                    }
+                )
+                .frame(minWidth: 500, minHeight: 380)
+            }
+            .frame(width: 520, height: 420)
         }
         .sheet(item: $editingServer) { server in
-            MCPServerFormView(
-                name: $formName,
-                command: $formCommand,
-                arguments: $formArguments,
-                isEnabled: $formEnabled,
-                onSave: {
-                    applyEdits(to: server)
-                    editingServer = nil
-                },
-                onCancel: {
-                    editingServer = nil
-                }
-            )
-            .frame(width: 480, height: 400)
+            NavigationStack {
+                MCPServerFormView(
+                    name: $formName,
+                    command: $formCommand,
+                    arguments: $formArguments,
+                    isEnabled: $formEnabled,
+                    title: "Edit MCP Server",
+                    onSave: {
+                        applyEdits(to: server)
+                        editingServer = nil
+                    },
+                    onCancel: {
+                        editingServer = nil
+                    }
+                )
+                .frame(minWidth: 500, minHeight: 380)
+            }
+            .frame(width: 520, height: 420)
         }
+    }
+
+    private func registerServers() {
+        appState.mcpHost.register(configs: servers)
     }
 
     // MARK: - Server Row
@@ -128,6 +173,7 @@ struct MCPServerSettingsView: View {
                 set: { newValue in
                     server.isEnabled = newValue
                     try? modelContext.save()
+                    registerServers()
                     Task { await appState.mcpHost.setEnabled(newValue, for: server) }
                 }
             ))
@@ -151,7 +197,7 @@ struct MCPServerSettingsView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 1)
     }
 
     @ViewBuilder
@@ -199,7 +245,7 @@ struct MCPServerSettingsView: View {
         config.isEnabled = formEnabled
         modelContext.insert(config)
         try? modelContext.save()
-        appState.mcpHost.register(configs: servers + [config])
+        registerServers()
 
         if config.isEnabled {
             Task { try? await appState.mcpHost.connect(config: config) }
@@ -225,7 +271,7 @@ struct MCPServerSettingsView: View {
                 await appState.mcpHost.disconnect(serverName: server.name)
             }
 
-            appState.mcpHost.register(configs: servers)
+            registerServers()
 
             if server.isEnabled {
                 await appState.mcpHost.restart(serverName: server.name)
@@ -240,6 +286,7 @@ struct MCPServerSettingsView: View {
             modelContext.delete(server)
         }
         try? modelContext.save()
+        registerServers()
     }
 
     private func connectionColor(for lifecycle: MCPServerRuntimeState.Lifecycle) -> Color {
