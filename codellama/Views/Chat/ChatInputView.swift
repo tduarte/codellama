@@ -46,6 +46,10 @@ struct ChatInputView: View {
                 .padding(.bottom, 10)
                 .padding(.top, 4)
             }
+            .glassEffect(.regular, in: .rect(
+                corners: .concentric(minimum: 16),
+                isUniform: false
+            ))
         }
     }
 
