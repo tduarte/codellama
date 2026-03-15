@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SidebarView: View {
     @Environment(AppState.self) private var appState
@@ -121,4 +122,26 @@ struct SidebarView: View {
             return Color.secondary.opacity(0.5)
         }
     }
+}
+
+#Preview {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: Conversation.self, ChatMessage.self, configurations: config)
+
+    let conv1 = Conversation(title: "Build a REST API in Swift", model: "llama3.1:8b")
+    let conv2 = Conversation(title: "SwiftUI layout tips", model: "codellama:7b")
+    let conv3 = Conversation(title: "Explain actor isolation", model: "llama3.1:8b")
+    container.mainContext.insert(conv1)
+    container.mainContext.insert(conv2)
+    container.mainContext.insert(conv3)
+
+    let chatViewModel = ChatViewModel(modelContext: container.mainContext)
+    chatViewModel.conversations = [conv1, conv2, conv3]
+
+    return NavigationStack {
+        SidebarView(chatViewModel: chatViewModel)
+    }
+    .environment(AppState())
+    .modelContainer(container)
+    .frame(width: 280, height: 500)
 }

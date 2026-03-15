@@ -7,6 +7,7 @@
 
 import AppKit
 import SwiftUI
+import SwiftData
 import Defaults
 
 struct MainView: View {
@@ -282,4 +283,25 @@ struct MainView: View {
     private func openSettings() {
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
+}
+
+#Preview {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(
+        for: Conversation.self, ChatMessage.self, MCPServerConfig.self, Skill.self,
+        configurations: config
+    )
+    let appState = AppState()
+    let chatViewModel = ChatViewModel(modelContext: container.mainContext)
+    let skillViewModel = SkillViewModel(modelContext: container.mainContext)
+    let agentViewModel = AgentViewModel(
+        ollamaClient: OllamaClient(),
+        mcpHost: appState.mcpHost,
+        modelContext: container.mainContext,
+        contextIndexManager: appState.contextIndexManager
+    )
+    MainView(chatViewModel: chatViewModel, agentViewModel: agentViewModel, skillViewModel: skillViewModel)
+        .environment(appState)
+        .modelContainer(container)
+        .frame(width: 900, height: 620)
 }

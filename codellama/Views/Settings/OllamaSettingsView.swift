@@ -250,3 +250,9 @@ struct OllamaSettingsView: View {
         }
     }
 }
+
+#Preview {
+    OllamaSettingsView()
+        .environment(AppState())
+        .frame(width: 700, height: 560)
+}

@@ -171,3 +171,71 @@ struct ChatInputView: View {
         }
     }
 }
+
+#Preview("Empty") {
+    @Previewable @State var text = ""
+    ChatInputView(
+        text: $text,
+        attachments: [],
+        canSend: false,
+        isGenerating: false,
+        isProcessingDrop: false,
+        isDropTargeted: false,
+        onSend: {},
+        onStop: {},
+        onRemoveAttachment: { _ in }
+    )
+    .padding()
+    .frame(width: 500)
+}
+
+#Preview("With Text") {
+    @Previewable @State var text = "How do I reverse a linked list in Swift?"
+    ChatInputView(
+        text: $text,
+        attachments: [],
+        canSend: true,
+        isGenerating: false,
+        isProcessingDrop: false,
+        isDropTargeted: false,
+        onSend: {},
+        onStop: {},
+        onRemoveAttachment: { _ in }
+    )
+    .padding()
+    .frame(width: 500)
+}
+
+#Preview("Generating") {
+    @Previewable @State var text = ""
+    ChatInputView(
+        text: $text,
+        attachments: [],
+        canSend: false,
+        isGenerating: true,
+        isProcessingDrop: false,
+        isDropTargeted: false,
+        onSend: {},
+        onStop: {},
+        onRemoveAttachment: { _ in }
+    )
+    .padding()
+    .frame(width: 500)
+}
+
+#Preview("Drop Target") {
+    @Previewable @State var text = ""
+    ChatInputView(
+        text: $text,
+        attachments: [],
+        canSend: false,
+        isGenerating: false,
+        isProcessingDrop: false,
+        isDropTargeted: true,
+        onSend: {},
+        onStop: {},
+        onRemoveAttachment: { _ in }
+    )
+    .padding()
+    .frame(width: 500)
+}

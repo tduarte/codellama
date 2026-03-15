@@ -34,3 +34,21 @@ struct StreamingTextView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+#Preview("Static") {
+    StreamingTextView(
+        text: "This is a **bold** response with `inline code`.\n\n```swift\nfunc greet(_ name: String) -> String {\n    return \"Hello, \\(name)!\"\n}\n```\n\nAnd a list:\n- Item one\n- Item two",
+        isStreaming: false
+    )
+    .padding()
+    .frame(width: 500)
+}
+
+#Preview("Streaming") {
+    StreamingTextView(
+        text: "Generating a response…",
+        isStreaming: true
+    )
+    .padding()
+    .frame(width: 500)
+}
