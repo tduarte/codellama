@@ -28,12 +28,47 @@ struct ChatInputView: View {
         VStack(alignment: .leading, spacing: 10) {
             attachmentTray
 
-            HStack(alignment: .bottom, spacing: 8) {
-                modelPickerButton
-                textEditor
-                actionButton
+            VStack(spacing: 8) {
+                textField
+
+                HStack(spacing: 8) {
+                    Spacer()
+                    modelPickerButton
+                    actionButton
+                }
             }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.background)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(.separator, lineWidth: 0.5)
+            )
         }
+    }
+
+    // MARK: - Text Field
+
+    private var textField: some View {
+        TextField("Send a message or drop files...", text: $text, axis: .vertical)
+            .textFieldStyle(.plain)
+            .lineLimit(1...10)
+            .focused($isFocused)
+            .disabled(isGenerating)
+            .onAppear {
+                isFocused = true
+            }
+            .onKeyPress(keys: [.return], phases: .down) { keyPress in
+                if keyPress.modifiers.contains(.shift) {
+                    return .ignored
+                }
+                if canSend && !isGenerating {
+                    onSend()
+                }
+                return .handled
+            }
     }
 
     // MARK: - Model Picker
@@ -45,68 +80,25 @@ struct ChatInputView: View {
             }
 
             ForEach(availableModels) { model in
-                Button(model.name) {
+                Button {
                     modelSelection.wrappedValue = model.name
+                } label: {
+                    Text(model.name)
+                    if model.name == selectedModel {
+                        Image(systemName: "checkmark")
+                    }
                 }
             }
         } label: {
-            HStack(spacing: 4) {
-                Text(selectedModel)
-                    .font(.caption)
-                    .lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2)
-            }
-            .foregroundStyle(.secondary)
+            Text(selectedModel)
+                .font(.caption)
+                .lineLimit(1)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
         .disabled(isGenerating)
-        .padding(.bottom, 8)
-    }
-
-    // MARK: - Text Editor
-
-    private var textEditor: some View {
-        ZStack(alignment: .topLeading) {
-            if text.isEmpty {
-                Text("Send a message or drop files...")
-                    .foregroundStyle(.tertiary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 10)
-                    .allowsHitTesting(false)
-            }
-
-            TextEditor(text: $text)
-                .font(.body)
-                .focused($isFocused)
-                .scrollContentBackground(.hidden)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .frame(minHeight: 40, maxHeight: 120)
-                .fixedSize(horizontal: false, vertical: true)
-                .onKeyPress(keys: [.return], phases: .down) { keyPress in
-                    if keyPress.modifiers.contains(.shift) {
-                        return .ignored
-                    }
-                    if canSend && !isGenerating {
-                        onSend()
-                    }
-                    return .handled
-                }
-        }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.background)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(.separator, lineWidth: 0.5)
-        )
-        .onAppear {
-            isFocused = true
-        }
     }
 
     // MARK: - Action Button
@@ -115,13 +107,11 @@ struct ChatInputView: View {
         Button(action: isGenerating ? onStop : onSend) {
             Image(systemName: isGenerating ? "stop.circle.fill" : "arrow.up.circle.fill")
                 .font(.title2)
-                .foregroundStyle(isGenerating ? AnyShapeStyle(.red) : AnyShapeStyle(.tint))
                 .contentTransition(.symbolEffect(.replace))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
         .disabled(!isGenerating && !canSend)
         .help(isGenerating ? "Stop generating" : "Send message")
-        .padding(.bottom, 8)
     }
 
     @ViewBuilder
