@@ -12,32 +12,62 @@ import ImageIO
 struct MessageBubble: View {
     let message: ChatMessage
 
+    private var isUser: Bool { message.role == "user" }
+
     var body: some View {
-        HStack {
-            if message.role == "user" {
-                Spacer(minLength: 60)
+        if isUser {
+            HStack {
+                Spacer(minLength: 0)
+                userBubble
             }
-
-            VStack(alignment: message.role == "user" ? .trailing : .leading, spacing: 4) {
-                roleLabel
-                imageAttachmentSummary
-                imageAttachmentPreviews
-
-                if message.isStreaming && message.content.isEmpty {
-                    typingIndicator
-                } else {
-                    StreamingTextView(
-                        text: message.content,
-                        isStreaming: message.isStreaming
-                    )
-                }
+        } else {
+            HStack {
+                nonUserContent
+                Spacer(minLength: 0)
             }
-            .padding(12)
-            .background(bubbleBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
 
-            if message.role != "user" {
-                Spacer(minLength: 60)
+    private var userBubble: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            imageAttachmentSummary
+            imageAttachmentPreviews
+
+            StreamingTextView(
+                text: message.content,
+                isStreaming: message.isStreaming
+            )
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.tint.quaternary)
+        )
+        .containerRelativeFrame(.horizontal, alignment: .trailing) { length, _ in
+            min(length * 0.7, length - 60)
+        }
+    }
+
+    private var nonUserContent: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            roleLabel
+            imageAttachmentSummary
+            imageAttachmentPreviews
+
+            if message.isStreaming && message.content.isEmpty {
+                typingIndicator
+            } else {
+                StreamingTextView(
+                    text: message.content,
+                    isStreaming: message.isStreaming
+                )
+            }
+        }
+        .padding(message.role == "system" ? 12 : 0)
+        .background {
+            if message.role == "system" {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.fill.tertiary)
             }
         }
     }
@@ -50,17 +80,20 @@ struct MessageBubble: View {
         case "user":
             EmptyView()
         case "assistant":
-            Label("Assistant", systemImage: "cpu")
-                .font(.caption)
+            Label("Assistant", systemImage: "sparkle")
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
+                .symbolRenderingMode(.hierarchical)
         case "system":
-            Label("System", systemImage: "gear")
-                .font(.caption)
+            Label("System", systemImage: "info.circle")
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
+                .symbolRenderingMode(.hierarchical)
         default:
             Label(message.role.capitalized, systemImage: "wrench")
-                .font(.caption)
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
+                .symbolRenderingMode(.hierarchical)
         }
     }
 
@@ -110,7 +143,7 @@ struct MessageBubble: View {
                             .padding(8)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(.secondary.opacity(0.08))
+                                    .fill(.fill.quaternary)
                             )
                         }
                     }
@@ -120,30 +153,17 @@ struct MessageBubble: View {
         }
     }
 
-    private var bubbleBackground: some ShapeStyle {
-        switch message.role {
-        case "user":
-            return AnyShapeStyle(.tint.opacity(0.15))
-        case "system":
-            return AnyShapeStyle(.yellow.opacity(0.1))
-        default:
-            return AnyShapeStyle(.secondary.opacity(0.1))
-        }
-    }
-
     private var typingIndicator: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3) { index in
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { index in
                 Circle()
                     .fill(.secondary)
                     .frame(width: 6, height: 6)
-                    .opacity(0.4)
-                    .animation(
-                        .easeInOut(duration: 0.6)
-                            .repeatForever()
-                            .delay(Double(index) * 0.2),
-                        value: message.isStreaming
-                    )
+                    .phaseAnimator([0.3, 1.0, 0.3]) { view, phase in
+                        view.opacity(phase)
+                    } animation: { _ in
+                        .easeInOut(duration: 0.6).delay(Double(index) * 0.2)
+                    }
             }
         }
         .padding(.vertical, 4)

@@ -124,7 +124,7 @@ struct SkillComposerView: View {
                         .padding(12)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(.secondary.opacity(0.08))
+                                .fill(.fill.quaternary)
                         )
                     }
                 }
@@ -236,7 +236,7 @@ private struct StepEditorCard: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(.secondary.opacity(0.08))
+                .fill(.fill.quaternary)
         )
         .onAppear {
             draftArguments = skillViewModel.prettyArguments(for: step)

@@ -97,6 +97,7 @@ struct MainView: View {
                                 chatViewModel.exportConversation(conversation)
                             } label: {
                                 Label("Export Conversation", systemImage: "square.and.arrow.up")
+                                    .symbolRenderingMode(.hierarchical)
                             }
                         }
                     }
@@ -108,6 +109,7 @@ struct MainView: View {
                             presentCommandPalette()
                         } label: {
                             Label("Commands", systemImage: "command")
+                                .symbolRenderingMode(.hierarchical)
                         }
                     }
 
@@ -118,9 +120,11 @@ struct MainView: View {
                             showSkills.toggle()
                         } label: {
                             Label("Skills", systemImage: "wand.and.stars")
+                                .symbolRenderingMode(.hierarchical)
                         }
                     }
                 }
+                .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
             }
             .sheet(isPresented: Binding(
                 get: { agentViewModel.showPlanTimeline },
