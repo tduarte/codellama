@@ -17,13 +17,13 @@ extension Defaults.Keys {
     static let defaultModel = Key<String>("defaultModel", default: "llama3.1:8b")
 
     /// The embedding model identifier used for local RAG indexing.
-    static let embeddingModel = Key<String>("embeddingModel", default: "nomic-embed-text")
+    static let embeddingModel = Key<String?>("embeddingModel", default: nil)
 
     /// User-attached folders that should be indexed into the local vector store.
     static let indexedFolderPaths = Key<[String]>("indexedFolderPaths", default: [])
 
     /// The system prompt prepended to every new conversation.
-    static let systemPrompt = Key<String>("systemPrompt", default: "You are a helpful coding assistant.")
+    static let systemPrompt = Key<String>("systemPrompt", default: "You are a helpful assistant.")
 
     /// Whether to stream responses token-by-token from the Ollama API.
     static let streamResponses = Key<Bool>("streamResponses", default: true)

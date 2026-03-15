@@ -44,4 +44,20 @@ struct OllamaStreamParser {
             throw OllamaError.decodingError(error)
         }
     }
+
+    /// Parse a single NDJSON line into a pull-progress update.
+    func parsePullProgress(_ line: String) throws -> OllamaPullProgress {
+        guard let data = line.data(using: .utf8) else {
+            throw OllamaError.decodingError(
+                DecodingError.dataCorrupted(
+                    .init(codingPath: [], debugDescription: "Invalid UTF-8 in stream line")
+                )
+            )
+        }
+        do {
+            return try decoder.decode(OllamaPullProgress.self, from: data)
+        } catch {
+            throw OllamaError.decodingError(error)
+        }
+    }
 }

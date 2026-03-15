@@ -149,6 +149,14 @@ enum JSONValueConversionError: LocalizedError {
     }
 }
 
+struct OllamaPullStreamError: LocalizedError, Sendable {
+    let message: String
+
+    var errorDescription: String? {
+        message
+    }
+}
+
 // MARK: - JSONValue Convenience Initializers
 
 extension JSONValue: ExpressibleByStringLiteral {
@@ -457,4 +465,35 @@ struct OllamaEmbeddingsRequest: Codable, Sendable {
 /// The response body returned by `POST /api/embeddings`.
 struct OllamaEmbeddingsResponse: Codable, Sendable {
     let embedding: [Double]
+}
+
+// MARK: - Ollama Pull
+
+/// The request body sent to `POST /api/pull`.
+struct OllamaPullRequest: Codable, Sendable {
+    let model: String
+    let stream: Bool
+
+    init(model: String, stream: Bool = true) {
+        self.model = model
+        self.stream = stream
+    }
+}
+
+/// A single progress update returned by `POST /api/pull`.
+struct OllamaPullProgress: Codable, Sendable {
+    let status: String
+    let digest: String?
+    let total: Int64?
+    let completed: Int64?
+    let error: String?
+
+    var fractionCompleted: Double? {
+        guard let total, let completed, total > 0 else { return nil }
+        return min(max(Double(completed) / Double(total), 0), 1)
+    }
+
+    var isComplete: Bool {
+        status.caseInsensitiveCompare("success") == .orderedSame
+    }
 }

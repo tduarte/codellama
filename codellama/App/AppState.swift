@@ -10,10 +10,17 @@ final class AppState {
 
     let mcpHost: MCPHost
     let contextIndexManager: ContextIndexManager
+    var selectedModel: String {
+        didSet {
+            guard selectedModel != oldValue else { return }
+            Defaults[.defaultModel] = selectedModel
+        }
+    }
 
     init() {
         self.mcpHost = MCPHost()
         self.contextIndexManager = ContextIndexManager()
+        self.selectedModel = Defaults[.defaultModel]
     }
 
     /// Lightweight instance for Xcode previews — uses an in-memory vector
@@ -29,6 +36,7 @@ final class AppState {
         self.contextIndexManager = ContextIndexManager(
             vectorStore: VectorStore(inMemory: true)
         )
+        self.selectedModel = Defaults[.defaultModel]
     }
 
     enum Status: Equatable {
@@ -45,12 +53,6 @@ final class AppState {
     private(set) var ollamaClient: OllamaClient?
     var isCommandPalettePresented: Bool = false
     private var modelCapabilities: [String: Set<String>] = [:]
-
-    /// Currently selected model name
-    var selectedModel: String {
-        get { Defaults[.defaultModel] }
-        set { Defaults[.defaultModel] = newValue }
-    }
 
     func startup(modelContext: ModelContext? = nil) async {
         status = .checking
@@ -80,16 +82,7 @@ final class AppState {
         // 3. Fetch available models
         status = .connecting
         do {
-            let response = try await client.listModels()
-            self.availableModels = response.models
-            self.modelCapabilities = [:]
-
-            // Auto-select first model if current selection isn't available
-            if !response.models.contains(where: { $0.name == selectedModel }),
-               let first = response.models.first {
-                selectedModel = first.name
-            }
-
+            try await refreshModels(using: client)
             status = .ready
         } catch {
             status = .error("Failed to fetch models: \(error.localizedDescription)")
@@ -132,6 +125,13 @@ final class AppState {
 
     func shutdown() async {
         await mcpHost.disconnectAll()
+    }
+
+    func refreshModels() async throws {
+        guard let ollamaClient else {
+            throw OllamaError.serverUnreachable
+        }
+        try await refreshModels(using: ollamaClient)
     }
 
     func modelSupportsVision(_ model: String) async -> Bool {
@@ -178,5 +178,16 @@ final class AppState {
         let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let path, !path.isEmpty else { return nil }
         return path
+    }
+
+    private func refreshModels(using client: OllamaClient) async throws {
+        let response = try await client.listModels()
+        availableModels = response.models
+        modelCapabilities = [:]
+
+        if !response.models.contains(where: { $0.name == selectedModel }),
+           let first = response.models.first {
+            selectedModel = first.name
+        }
     }
 }
