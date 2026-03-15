@@ -99,12 +99,15 @@ final class ChatViewModel {
     var isProcessingAttachmentDrop: Bool = false
     var pendingAttachments: [PendingChatAttachment] = []
     var error: String?
+    var launchStarters: [ConversationStarter] = []
 
     // MARK: - Private
 
     private var modelContext: ModelContext
     private var generationTask: Task<Void, Never>?
+    private var conversationStarterIDs: [UUID: [String]] = [:]
     private let fileManager = FileManager.default
+    private let starterCatalog = ConversationStarter.all
     private let textAttachmentExtensions: Set<String> = [
         "c", "cc", "cpp", "css", "go", "h", "hpp", "html", "java", "js", "json", "jsx",
         "md", "mjs", "py", "rb", "rs", "sh", "sql", "swift", "toml", "ts", "tsx", "txt",
@@ -122,6 +125,7 @@ final class ChatViewModel {
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+        self.launchStarters = Array(starterCatalog.shuffled().prefix(3))
     }
 
     // MARK: - Conversation Management
@@ -132,6 +136,11 @@ final class ChatViewModel {
 
         do {
             conversations = try modelContext.fetch(fetchDescriptor)
+            for conversation in conversations where conversation.messages.isEmpty {
+                if conversationStarterIDs[conversation.id] == nil {
+                    conversationStarterIDs[conversation.id] = starterIDs()
+                }
+            }
         } catch {
             self.error = "Failed to fetch conversations: \(error.localizedDescription)"
         }
@@ -139,8 +148,9 @@ final class ChatViewModel {
 
     @discardableResult
     func createConversation(model: String) -> Conversation {
-        let conversation = Conversation(title: "New Chat", model: model)
+        let conversation = Conversation(title: "New Conversation", model: model)
         modelContext.insert(conversation)
+        conversationStarterIDs[conversation.id] = starterIDs()
         try? modelContext.save()
 
         fetchConversations()
@@ -154,6 +164,7 @@ final class ChatViewModel {
             selectedConversation = nil
         }
 
+        conversationStarterIDs.removeValue(forKey: conversation.id)
         modelContext.delete(conversation)
         try? modelContext.save()
 
@@ -200,10 +211,7 @@ final class ChatViewModel {
             error = "Ollama is not connected."
             return
         }
-        guard let conversation = selectedConversation else {
-            error = "No conversation selected."
-            return
-        }
+        let conversation = selectedConversation ?? createConversation(model: appState.selectedModel)
         if attachments.contains(where: { $0.kind == .image }) {
             let supportsVision = await appState.modelSupportsVision(conversation.model)
             guard supportsVision else {
@@ -371,6 +379,36 @@ final class ChatViewModel {
         pendingAttachments.removeAll { $0.id == attachment.id }
     }
 
+    func starters(for conversation: Conversation?) -> [ConversationStarter] {
+        if let conversation {
+            return starters(for: conversationStarterIDs[conversation.id] ?? starterIDs())
+        }
+
+        return launchStarters
+    }
+
+    func reshuffleStarters(for conversation: Conversation?) {
+        if let conversation {
+            let currentIDs = Set(conversationStarterIDs[conversation.id] ?? [])
+            let nextIDs = starterIDs(excluding: currentIDs)
+            conversationStarterIDs[conversation.id] = nextIDs
+            return
+        }
+
+        let currentIDs = Set(launchStarters.map(\.id))
+        launchStarters = starters(for: starterIDs(excluding: currentIDs))
+    }
+
+    func applyStarter(_ starter: ConversationStarter, appState: AppState) {
+        if selectedConversation == nil {
+            _ = createConversation(model: appState.selectedModel)
+        }
+
+        pendingAttachments.removeAll()
+        inputText = starter.prompt
+        error = nil
+    }
+
     func exportConversation(_ conversation: Conversation) {
         let panel = NSSavePanel()
         panel.title = "Export Conversation"
@@ -519,6 +557,18 @@ final class ChatViewModel {
             field.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
                 .contains(normalizedQuery)
         }
+    }
+
+    private func starters(for ids: [String]) -> [ConversationStarter] {
+        ids.compactMap { id in
+            starterCatalog.first(where: { $0.id == id })
+        }
+    }
+
+    private func starterIDs(excluding excludedIDs: Set<String> = []) -> [String] {
+        let eligibleStarters = starterCatalog.filter { !excludedIDs.contains($0.id) }
+        let pool = eligibleStarters.count >= 3 ? eligibleStarters : starterCatalog
+        return Array(pool.shuffled().prefix(3)).map(\.id)
     }
 
     private func makeMarkdownExport(for conversation: Conversation) -> String {
