@@ -64,3 +64,37 @@ struct PlanStepRow: View {
         }
     }
 }
+
+#Preview {
+    let readCall = ToolCall(id: "c1", serverName: "filesystem", toolName: "read_file",
+                            arguments: ["path": "/tmp/config.json"])
+    let writeCall = ToolCall(id: "c4", serverName: "filesystem", toolName: "write_file",
+                             arguments: ["path": "/tmp/out.txt"])
+
+    VStack(spacing: 0) {
+        PlanStepRow(step: AgentStep(index: 0, description: "Read the project configuration file",
+                                    toolCall: readCall, status: .pending))
+        Divider()
+        PlanStepRow(step: AgentStep(index: 1, description: "Fetch repository info",
+                                    toolCall: ToolCall(id: "c2", serverName: "github", toolName: "get_repo",
+                                                       arguments: ["owner": "apple", "repo": "swift"]),
+                                    status: .running))
+        Divider()
+        PlanStepRow(step: AgentStep(index: 2, description: "List directory contents",
+                                    toolCall: readCall, status: .succeeded,
+                                    result: ToolResult(id: "r1", toolCallId: "c1",
+                                                       content: "config.json\nPackage.swift\nREADME.md",
+                                                       isError: false)))
+        Divider()
+        PlanStepRow(step: AgentStep(index: 3, description: "Write output file",
+                                    toolCall: writeCall, status: .failed,
+                                    result: ToolResult(id: "r2", toolCallId: "c4",
+                                                       content: "Permission denied: /tmp/out.txt",
+                                                       isError: true)))
+        Divider()
+        PlanStepRow(step: AgentStep(index: 4, description: "Clean up temp files",
+                                    toolCall: writeCall, status: .skipped))
+    }
+    .padding()
+    .frame(width: 460)
+}

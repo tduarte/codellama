@@ -138,3 +138,59 @@ struct PlanTimelineView: View {
         }
     }
 }
+
+private extension PlanTimelineView {
+    static func sampleToolCall(id: String = "c1", tool: String = "read_file") -> ToolCall {
+        ToolCall(id: id, serverName: "filesystem", toolName: tool, arguments: ["path": "/tmp/file.txt"])
+    }
+}
+
+#Preview("Awaiting Approval") {
+    let call1 = ToolCall(id: "c1", serverName: "filesystem", toolName: "read_file",
+                         arguments: ["path": "/tmp/config.json"])
+    let call2 = ToolCall(id: "c2", serverName: "filesystem", toolName: "list_directory",
+                         arguments: ["path": "/tmp"])
+    let plan = ExecutionPlan(
+        intent: "Read project files and summarize",
+        contextSummary: "User wants a summary of project files.",
+        steps: [
+            AgentStep(index: 0, description: "Read the configuration file", toolCall: call1),
+            AgentStep(index: 1, description: "List directory contents", toolCall: call2)
+        ],
+        status: .awaitingApproval
+    )
+    PlanTimelineView(
+        task: AgentTask(prompt: "Read my project files and give me a summary", phase: .awaitingApproval, plan: plan),
+        onApprove: {}, onCancel: {}, onClose: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Executing") {
+    let call = ToolCall(id: "c1", serverName: "filesystem", toolName: "read_file",
+                        arguments: ["path": "/tmp/file.txt"])
+    let plan = ExecutionPlan(
+        intent: "Read and process files",
+        contextSummary: "",
+        steps: [
+            AgentStep(index: 0, description: "Read config file", toolCall: call, status: .succeeded,
+                      result: ToolResult(id: "r1", toolCallId: "c1", content: "Done", isError: false)),
+            AgentStep(index: 1, description: "Parse contents", toolCall: call, status: .running),
+            AgentStep(index: 2, description: "Write summary", toolCall: call, status: .pending)
+        ],
+        status: .executing
+    )
+    PlanTimelineView(
+        task: AgentTask(prompt: "Process project files", phase: .executing, plan: plan),
+        onApprove: {}, onCancel: {}, onClose: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Planning") {
+    PlanTimelineView(
+        task: AgentTask(prompt: "Create a new SwiftUI feature", phase: .planning),
+        onApprove: {}, onCancel: {}, onClose: {}
+    )
+    .frame(width: 520, height: 340)
+}

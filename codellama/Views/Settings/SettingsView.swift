@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SettingsView: View {
     @Bindable var skillViewModel: SkillViewModel
@@ -27,4 +28,13 @@ struct SettingsView: View {
         .scenePadding()
         .frame(minWidth: 700, idealWidth: 780, minHeight: 480, idealHeight: 560)
     }
+}
+
+#Preview {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: Skill.self, MCPServerConfig.self, configurations: config)
+    let skillViewModel = SkillViewModel(modelContext: container.mainContext)
+    SettingsView(skillViewModel: skillViewModel)
+        .environment(AppState())
+        .modelContainer(container)
 }
