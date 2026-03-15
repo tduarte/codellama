@@ -17,7 +17,7 @@ struct ChatView: View {
     @State private var didInitialScroll = false
 
     var body: some View {
-        messageList
+        content
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 chatInput
             }
@@ -39,6 +39,27 @@ struct ChatView: View {
     }
 
     // MARK: - Message List
+
+    @ViewBuilder
+    private var content: some View {
+        if sortedMessages.isEmpty {
+            ConversationEmptyStateView(
+                selectedModel: conversation.model,
+                availableModels: appState.availableModels,
+                isCurrentModelAvailable: isCurrentModelAvailable,
+                modelSelection: modelSelection,
+                starters: chatViewModel.starters(for: conversation),
+                onStarterSelected: { starter in
+                    chatViewModel.applyStarter(starter, appState: appState)
+                },
+                onExploreMore: {
+                    chatViewModel.reshuffleStarters(for: conversation)
+                }
+            )
+        } else {
+            messageList
+        }
+    }
 
     private var messageList: some View {
         ScrollViewReader { proxy in
