@@ -36,7 +36,7 @@ final class ContextIndexManager {
         }
     }
 
-    func addFolder(_ path: String, ollamaClient: OllamaClient?, embeddingModel: String) async {
+    func addFolder(_ path: String, ollamaClient: OllamaClient?, embeddingModel: String?) async {
         guard !attachedFolders.contains(path) else { return }
         attachedFolders.append(path)
         attachedFolders.sort()
@@ -44,26 +44,31 @@ final class ContextIndexManager {
         await reindexLocalFolders(using: ollamaClient, embeddingModel: embeddingModel)
     }
 
-    func removeFolder(_ path: String, ollamaClient: OllamaClient?, embeddingModel: String) async {
+    func removeFolder(_ path: String, ollamaClient: OllamaClient?, embeddingModel: String?) async {
         attachedFolders.removeAll { $0 == path }
         Defaults[.indexedFolderPaths] = attachedFolders
         await reindexLocalFolders(using: ollamaClient, embeddingModel: embeddingModel)
     }
 
-    func reindexLocalFolders(using ollamaClient: OllamaClient?, embeddingModel: String) async {
-        guard let ollamaClient else {
-            statusMessage = attachedFolders.isEmpty
-                ? "No folders attached."
-                : "Ollama is unavailable. Start Ollama before indexing."
-            lastError = attachedFolders.isEmpty ? nil : "Ollama is unavailable."
-            return
-        }
-
+    func reindexLocalFolders(using ollamaClient: OllamaClient?, embeddingModel: String?) async {
         guard !attachedFolders.isEmpty else {
             indexedFileCount = 0
             try? await vectorStore.removeResources(serverName: "local")
             statusMessage = "No folders attached."
             lastError = nil
+            return
+        }
+
+        guard let embeddingModel, !embeddingModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            isIndexing = false
+            statusMessage = "Embeddings are disabled. Choose an embedding model to index local context."
+            lastError = nil
+            return
+        }
+
+        guard let ollamaClient else {
+            statusMessage = "Ollama is unavailable. Start Ollama before indexing."
+            lastError = "Ollama is unavailable."
             return
         }
 

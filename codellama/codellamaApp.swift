@@ -58,7 +58,7 @@ struct codellamaApp: App {
             SettingsView(skillViewModel: SkillViewModel(modelContext: sharedModelContainer.mainContext))
                 .environment(appState)
         }
-        .defaultSize(width: 780, height: 560)
+        .defaultSize(width: 860, height: 680)
         .windowResizability(.contentSize)
     }
 }

@@ -26,7 +26,7 @@ struct SettingsView: View {
             }
         }
         .scenePadding()
-        .frame(minWidth: 700, idealWidth: 780, minHeight: 480, idealHeight: 560)
+        .frame(minWidth: 760, idealWidth: 860, minHeight: 620, idealHeight: 680)
     }
 }
 

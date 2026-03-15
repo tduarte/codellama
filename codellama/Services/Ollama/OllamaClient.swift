@@ -7,6 +7,7 @@ enum OllamaError: LocalizedError {
     case invalidResponse(statusCode: Int)
     case decodingError(Error, responsePreview: String = "")
     case networkError(Error)
+    case serverMessage(String)
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ enum OllamaError: LocalizedError {
             return preview.isEmpty ? base : "\(base)\n\nReceived: \(preview)"
         case .networkError(let error):
             return error.localizedDescription
+        case .serverMessage(let message):
+            return message
         }
     }
 }
@@ -242,6 +245,61 @@ actor OllamaClient {
         } catch {
             let preview = String(data: data.prefix(500), encoding: .utf8) ?? "<non-utf8>"
             throw OllamaError.decodingError(error, responsePreview: preview)
+        }
+    }
+
+    // MARK: - Pull
+
+    /// Pull a model with streaming progress updates (POST /api/pull).
+    func pullModel(named model: String) async -> AsyncThrowingStream<OllamaPullProgress, Error> {
+        let session = self.session
+        let parser = self.parser
+        let encoder = self.encoder
+        let baseURL = self.baseURL
+
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let url = baseURL.appendingPathComponent("api/pull")
+                    var urlRequest = URLRequest(url: url)
+                    urlRequest.httpMethod = "POST"
+                    urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    urlRequest.httpBody = try encoder.encode(OllamaPullRequest(model: model))
+                    urlRequest.timeoutInterval = 600
+
+                    let (bytes, response) = try await session.bytes(for: urlRequest)
+                    guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                        let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+                        throw OllamaError.invalidResponse(statusCode: code)
+                    }
+
+                    for try await line in bytes.lines {
+                        if Task.isCancelled { break }
+
+                        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { continue }
+
+                        let progress = try parser.parsePullProgress(trimmed)
+                        if let error = progress.error, !error.isEmpty {
+                            throw OllamaError.serverMessage(error)
+                        }
+
+                        continuation.yield(progress)
+
+                        if progress.isComplete {
+                            break
+                        }
+                    }
+
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
         }
     }
 
