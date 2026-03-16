@@ -113,4 +113,4 @@ xcodebuild test -project codellama.xcodeproj -scheme codellama \
 
 ## License
 
-MIT
+GNU GPL v3.0 only
