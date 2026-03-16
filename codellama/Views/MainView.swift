@@ -78,56 +78,61 @@ struct MainView: View {
         case .ready:
             NavigationSplitView {
                 SidebarView(chatViewModel: chatViewModel)
+                    .navigationSplitViewColumnWidth(min: 250, ideal: 280, max: 320)
             } detail: {
-                Group {
-                    if let conversation = chatViewModel.selectedConversation {
-                        ChatView(
-                            conversation: conversation,
-                            chatViewModel: chatViewModel,
-                            agentViewModel: agentViewModel
-                        )
-                    } else {
-                        LaunchConversationView(
-                            chatViewModel: chatViewModel,
-                            agentViewModel: agentViewModel
-                        )
-                    }
-                }
-                .toolbar {
-                    ToolbarItem {
-                        if let conversation = chatViewModel.selectedConversation {
-                            Button {
-                                chatViewModel.exportConversation(conversation)
-                            } label: {
-                                Label("Export Conversation", systemImage: "square.and.arrow.up")
-                                    .symbolRenderingMode(.hierarchical)
+                NavigationStack {
+                    detailContent
+                        .toolbar {
+                            ToolbarItem {
+                                Button {
+                                    chatViewModel.createConversation(model: appState.selectedModel)
+                                } label: {
+                                    Label("New Conversation", systemImage: "plus")
+                                        .symbolRenderingMode(.hierarchical)
+                                }
+                                .keyboardShortcut("n", modifiers: .command)
+                            }
+
+                            ToolbarItem {
+                                if let conversation = chatViewModel.selectedConversation {
+                                    Button {
+                                        chatViewModel.exportConversation(conversation)
+                                    } label: {
+                                        Label("Export Conversation", systemImage: "square.and.arrow.up")
+                                            .symbolRenderingMode(.hierarchical)
+                                    }
+                                }
+                            }
+
+                            ToolbarSpacer(.fixed)
+
+                            ToolbarItem {
+                                Button {
+                                    presentCommandPalette()
+                                } label: {
+                                    Label("Commands", systemImage: "command")
+                                        .symbolRenderingMode(.hierarchical)
+                                }
+                            }
+
+                            ToolbarSpacer(.fixed)
+
+                            ToolbarItem {
+                                Button {
+                                    showSkills.toggle()
+                                } label: {
+                                    Label("Skills", systemImage: "sidebar.right")
+                                        .symbolRenderingMode(.hierarchical)
+                                }
                             }
                         }
-                    }
-
-                    ToolbarSpacer(.fixed)
-
-                    ToolbarItem {
-                        Button {
-                            presentCommandPalette()
-                        } label: {
-                            Label("Commands", systemImage: "command")
-                                .symbolRenderingMode(.hierarchical)
-                        }
-                    }
-
-                    ToolbarSpacer(.fixed)
-
-                    ToolbarItem {
-                        Button {
-                            showSkills.toggle()
-                        } label: {
-                            Label("Skills", systemImage: "wand.and.stars")
-                                .symbolRenderingMode(.hierarchical)
-                        }
-                    }
+                        .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
                 }
-                .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
+            }
+            .navigationSplitViewStyle(.balanced)
+            .inspector(isPresented: $showSkills) {
+                SkillInspectorView(skillViewModel: skillViewModel)
+                    .inspectorColumnWidth(min: 280, ideal: 300, max: 400)
             }
             .sheet(isPresented: Binding(
                 get: { agentViewModel.showPlanTimeline },
@@ -144,10 +149,6 @@ struct MainView: View {
                 }
             }
             .interactiveDismissDisabled(agentViewModel.isRunning)
-            .inspector(isPresented: $showSkills) {
-                SkillInspectorView(skillViewModel: skillViewModel)
-            }
-            .inspectorColumnWidth(min: 320, ideal: 380, max: 500)
             .sheet(
                 isPresented: Binding(
                     get: { appState.isCommandPalettePresented },
@@ -191,7 +192,7 @@ struct MainView: View {
                 category: "Quick Action",
                 keywords: ["skills", "tools", "automation"]
             ) {
-                showSkills.toggle()
+                showSkills = true
             },
             CommandPaletteItem(
                 id: "open-settings",
@@ -300,6 +301,22 @@ struct MainView: View {
         chatViewModel.fetchConversations()
         skillViewModel.fetchSkills()
         appState.isCommandPalettePresented = true
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        if let conversation = chatViewModel.selectedConversation {
+            ChatView(
+                conversation: conversation,
+                chatViewModel: chatViewModel,
+                agentViewModel: agentViewModel
+            )
+        } else {
+            LaunchConversationView(
+                chatViewModel: chatViewModel,
+                agentViewModel: agentViewModel
+            )
+        }
     }
 
     private func openSettings() {

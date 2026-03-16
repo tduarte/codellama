@@ -1,15 +1,40 @@
 import SwiftUI
 
 struct SkillListView: View {
+    enum LayoutStyle {
+        case horizontal
+        case vertical
+    }
+
     @Bindable var skillViewModel: SkillViewModel
     var isSettingsContext: Bool = false
+    var layoutStyle: LayoutStyle = .horizontal
+    var showsDetailPane: Bool = true
+    var onDismiss: (() -> Void)? = nil
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebarPane
-            Divider()
-            detailPane
+        Group {
+            if showsDetailPane {
+                switch layoutStyle {
+                case .horizontal:
+                    HStack(spacing: 0) {
+                        sidebarPane
+                        Divider()
+                        detailPane
+                    }
+
+                case .vertical:
+                    VSplitView {
+                        sidebarPane
+                            .frame(minHeight: 220, idealHeight: 280, maxHeight: 360)
+                        detailPane
+                    }
+                }
+            } else {
+                sidebarPane
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .environment(\.defaultMinListRowHeight, 30)
         .onAppear {
             skillViewModel.fetchSkills()
@@ -29,20 +54,21 @@ struct SkillListView: View {
                 Text("Skills")
                     .font(.title2.weight(.semibold))
                 Spacer()
-                if isSettingsContext {
+                Button {
+                    skillViewModel.refreshSkills()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .modifier(RefreshButtonStyle(isProminent: isSettingsContext))
+
+                if let onDismiss {
                     Button {
-                        skillViewModel.refreshSkills()
+                        onDismiss()
                     } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
+                        Image(systemName: "xmark")
                     }
-                    .buttonStyle(.borderedProminent)
-                } else {
-                    Button {
-                        skillViewModel.refreshSkills()
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderless)
+                    .help("Close")
                 }
             }
             .padding(.horizontal, 16)
@@ -154,6 +180,19 @@ struct SkillListView: View {
                 }
             }
         )
+    }
+}
+
+private struct RefreshButtonStyle: ViewModifier {
+    let isProminent: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isProminent {
+            content.buttonStyle(.borderedProminent)
+        } else {
+            content.buttonStyle(.bordered)
+        }
     }
 }
 

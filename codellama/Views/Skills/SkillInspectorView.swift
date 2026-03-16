@@ -4,7 +4,10 @@ struct SkillInspectorView: View {
     @Bindable var skillViewModel: SkillViewModel
 
     var body: some View {
-        SkillListView(skillViewModel: skillViewModel)
-            .frame(minWidth: 360)
+        SkillListView(
+            skillViewModel: skillViewModel,
+            layoutStyle: .horizontal,
+            showsDetailPane: false
+        )
     }
 }
