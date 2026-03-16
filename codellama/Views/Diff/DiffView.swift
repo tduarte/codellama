@@ -74,23 +74,3 @@ struct DiffView: View {
         return lines
     }
 }
-
-#Preview {
-    DiffView(
-        filename: "ContentView.swift",
-        unifiedDiff: """
-        --- a/ContentView.swift
-        +++ b/ContentView.swift
-        @@ -1,7 +1,7 @@
-         import SwiftUI
-        -struct ContentView: View {
-        +struct HomeView: View {
-             var body: some View {
-        -        Text("Hello, world!")
-        +        Text("Welcome!")
-             }
-         }
-        """
-    )
-    .frame(width: 500, height: 300)
-}

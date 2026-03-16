@@ -80,18 +80,3 @@ struct DiffLineView: View {
         }
     }
 }
-
-#Preview {
-    VStack(spacing: 0) {
-        DiffLineView(line: DiffLine(kind: .context, lineNumber: 1, content: "import SwiftUI"))
-        DiffLineView(line: DiffLine(kind: .context, lineNumber: 2, content: ""))
-        DiffLineView(line: DiffLine(kind: .removed, lineNumber: nil, content: "struct ContentView: View {"))
-        DiffLineView(line: DiffLine(kind: .added, lineNumber: 3, content: "struct HomeView: View {"))
-        DiffLineView(line: DiffLine(kind: .context, lineNumber: 4, content: "    var body: some View {"))
-        DiffLineView(line: DiffLine(kind: .removed, lineNumber: nil, content: "        Text(\"Hello, world!\")"))
-        DiffLineView(line: DiffLine(kind: .added, lineNumber: 5, content: "        Text(\"Welcome!\")"))
-        DiffLineView(line: DiffLine(kind: .context, lineNumber: 6, content: "    }"))
-        DiffLineView(line: DiffLine(kind: .context, lineNumber: 7, content: "}"))
-    }
-    .frame(width: 450)
-}

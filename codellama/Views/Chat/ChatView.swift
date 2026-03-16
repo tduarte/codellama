@@ -166,27 +166,3 @@ struct ChatView: View {
         }
     }
 }
-
-#Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Conversation.self, ChatMessage.self, configurations: config)
-
-    let conversation = Conversation(title: "Quicksort Discussion", model: "llama3.1:8b")
-    let userMsg = ChatMessage(role: "user", content: "Explain quicksort and its time complexity.")
-    let assistantMsg = ChatMessage(
-        role: "assistant",
-        content: "Quicksort is a **divide-and-conquer** sorting algorithm with **O(n log n)** average time complexity.\n\n```swift\nfunc quicksort<T: Comparable>(_ arr: [T]) -> [T] {\n    guard arr.count > 1 else { return arr }\n    let pivot = arr[arr.count / 2]\n    return quicksort(arr.filter { $0 < pivot })\n        + arr.filter { $0 == pivot }\n        + quicksort(arr.filter { $0 > pivot })\n}\n```"
-    )
-    container.mainContext.insert(conversation)
-    container.mainContext.insert(userMsg)
-    container.mainContext.insert(assistantMsg)
-    userMsg.conversation = conversation
-    assistantMsg.conversation = conversation
-
-    let chatViewModel = ChatViewModel(modelContext: container.mainContext)
-
-    return ChatView(conversation: conversation, chatViewModel: chatViewModel)
-        .environment(AppState.preview)
-        .modelContainer(container)
-        .frame(width: 700, height: 520)
-}

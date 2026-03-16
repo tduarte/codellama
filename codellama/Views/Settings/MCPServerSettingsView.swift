@@ -294,30 +294,3 @@ struct MCPServerSettingsView: View {
         }
     }
 }
-
-#Preview("Empty") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: MCPServerConfig.self, configurations: config)
-    MCPServerSettingsView()
-        .environment(AppState.preview)
-        .modelContainer(container)
-        .frame(width: 700, height: 480)
-}
-
-#Preview("With Servers") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: MCPServerConfig.self, configurations: config)
-
-    let fs = MCPServerConfig(name: "filesystem", command: "npx",
-                              arguments: ["@modelcontextprotocol/server-filesystem", "/tmp"])
-    let gh = MCPServerConfig(name: "github", command: "npx",
-                              arguments: ["@modelcontextprotocol/server-github"])
-    gh.isEnabled = false
-    container.mainContext.insert(fs)
-    container.mainContext.insert(gh)
-
-    return MCPServerSettingsView()
-        .environment(AppState.preview)
-        .modelContainer(container)
-        .frame(width: 700, height: 300)
-}

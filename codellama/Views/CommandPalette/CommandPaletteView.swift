@@ -183,30 +183,3 @@ struct CommandPaletteView: View {
         item.action()
     }
 }
-
-#Preview {
-    @Previewable @State var isPresented = true
-    let items: [CommandPaletteItem] = [
-        CommandPaletteItem(id: "new-chat", title: "New Conversation",
-                           subtitle: "Create a fresh chat with the default model.",
-                           systemImage: "square.and.pencil", category: "Quick Action",
-                           keywords: ["new", "chat", "compose"]) {},
-        CommandPaletteItem(id: "open-settings", title: "Open Settings",
-                           subtitle: "Manage Ollama and MCP server configuration.",
-                           systemImage: "gearshape", category: "Quick Action",
-                           keywords: ["settings", "preferences"]) {},
-        CommandPaletteItem(id: "skill-refactor", title: "Refactor Code",
-                           subtitle: "Run the saved code-refactoring skill.",
-                           systemImage: "wand.and.stars", category: "Skill",
-                           keywords: ["refactor", "code", "clean"]) {},
-        CommandPaletteItem(id: "restart-fs", title: "Restart filesystem",
-                           subtitle: "Server is disconnected.",
-                           systemImage: "arrow.clockwise", category: "Server",
-                           keywords: ["restart", "server", "filesystem"]) {},
-        CommandPaletteItem(id: "conv-1", title: "Build a REST API in Swift",
-                           subtitle: "Conversation • llama3.1:8b",
-                           systemImage: "bubble.left.and.bubble.right", category: "Conversation",
-                           keywords: ["rest", "api", "swift"]) {}
-    ]
-    CommandPaletteView(isPresented: $isPresented, items: items)
-}

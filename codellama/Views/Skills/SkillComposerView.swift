@@ -246,28 +246,3 @@ private struct StepEditorCard: View {
         }
     }
 }
-
-#Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Skill.self, configurations: config)
-
-    let skill = Skill(
-        name: "Refactor Function",
-        descriptionText: "Reads a Swift source file and rewrites a named function with improved clarity and style.",
-        toolSequence: [
-            ToolCall(id: "c1", serverName: "filesystem", toolName: "read_file",
-                     arguments: ["path": .string("/tmp/MyView.swift")]),
-            ToolCall(id: "c2", serverName: "filesystem", toolName: "write_file",
-                     arguments: ["path": .string("/tmp/MyView.swift"), "content": .string("")])
-        ]
-    )
-    container.mainContext.insert(skill)
-
-    let skillViewModel = SkillViewModel(modelContext: container.mainContext)
-    skillViewModel.selectedSkill = skill
-
-    return SkillComposerView(skill: skill, skillViewModel: skillViewModel)
-        .environment(AppState.preview)
-        .modelContainer(container)
-        .frame(width: 600, height: 680)
-}
