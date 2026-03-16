@@ -311,7 +311,8 @@ struct MainView: View {
             ChatView(
                 conversation: conversation,
                 chatViewModel: chatViewModel,
-                agentViewModel: agentViewModel
+                agentViewModel: agentViewModel,
+                installedSkillNames: skillViewModel.skills.map(\.name)
             )
         } else {
             LaunchConversationView(

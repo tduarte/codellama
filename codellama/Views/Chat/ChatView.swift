@@ -14,6 +14,7 @@ struct ChatView: View {
     @Bindable var conversation: Conversation
     @Bindable var chatViewModel: ChatViewModel
     @Bindable var agentViewModel: AgentViewModel
+    var installedSkillNames: [String] = []
     @State private var isTargetingFileDrop = false
     @State private var didInitialScroll = false
 
@@ -121,7 +122,8 @@ struct ChatView: View {
             },
             onRemoveAttachment: { attachment in
                 chatViewModel.removePendingAttachment(attachment)
-            }
+            },
+            installedSkillNames: installedSkillNames
         )
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
