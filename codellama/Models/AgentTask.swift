@@ -15,6 +15,7 @@ import Foundation
 struct AgentTask: Codable, Identifiable, Sendable {
     let id: UUID
     let prompt: String
+    let model: String
     var phase: AgentPhase
     var plan: ExecutionPlan?
     var timeline: [TimelineEvent]
@@ -35,12 +36,14 @@ struct AgentTask: Codable, Identifiable, Sendable {
     init(
         id: UUID = UUID(),
         prompt: String,
+        model: String,
         phase: AgentPhase = .architecting,
         plan: ExecutionPlan? = nil,
         timeline: [TimelineEvent] = []
     ) {
         self.id = id
         self.prompt = prompt
+        self.model = model
         self.phase = phase
         self.plan = plan
         self.timeline = timeline

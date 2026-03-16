@@ -24,7 +24,8 @@ struct MCPServerSettingsView: View {
     // Form state for add/edit
     @State private var formName = ""
     @State private var formCommand = ""
-    @State private var formArguments = ""
+    @State private var formArgumentsText = ""
+    @State private var formEnvironmentEntries: [MCPEnvironmentEntry] = [MCPEnvironmentEntry()]
     @State private var formEnabled = true
 
     var body: some View {
@@ -98,7 +99,8 @@ struct MCPServerSettingsView: View {
                 MCPServerFormView(
                     name: $formName,
                     command: $formCommand,
-                    arguments: $formArguments,
+                    argumentsText: $formArgumentsText,
+                    environmentEntries: $formEnvironmentEntries,
                     isEnabled: $formEnabled,
                     title: "Add MCP Server",
                     onSave: {
@@ -118,7 +120,8 @@ struct MCPServerSettingsView: View {
                 MCPServerFormView(
                     name: $formName,
                     command: $formCommand,
-                    arguments: $formArguments,
+                    argumentsText: $formArgumentsText,
+                    environmentEntries: $formEnvironmentEntries,
                     isEnabled: $formEnabled,
                     title: "Edit MCP Server",
                     onSave: {
@@ -213,26 +216,30 @@ struct MCPServerSettingsView: View {
     private func prepareForAdd() {
         formName = ""
         formCommand = ""
-        formArguments = ""
+        formArgumentsText = ""
+        formEnvironmentEntries = [MCPEnvironmentEntry()]
         formEnabled = true
     }
 
     private func prepareForEdit(_ server: MCPServerConfig) {
         formName = server.name
         formCommand = server.command
-        formArguments = server.arguments.joined(separator: " ")
+        formArgumentsText = server.arguments.joined(separator: "\n")
+        formEnvironmentEntries = (server.environment ?? [:])
+            .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+            .map { MCPEnvironmentEntry(key: $0.key, value: $0.value) }
+        if formEnvironmentEntries.isEmpty {
+            formEnvironmentEntries = [MCPEnvironmentEntry()]
+        }
         formEnabled = server.isEnabled
     }
 
     private func saveNewServer() {
-        let args = formArguments
-            .split(separator: " ", omittingEmptySubsequences: true)
-            .map(String.init)
-
         let config = MCPServerConfig(
             name: formName,
             command: formCommand,
-            arguments: args
+            arguments: parsedArguments(),
+            environment: parsedEnvironment()
         )
         config.isEnabled = formEnabled
         modelContext.insert(config)
@@ -246,13 +253,11 @@ struct MCPServerSettingsView: View {
 
     private func applyEdits(to server: MCPServerConfig) {
         let previousName = server.name
-        let args = formArguments
-            .split(separator: " ", omittingEmptySubsequences: true)
-            .map(String.init)
 
         server.name = formName
         server.command = formCommand
-        server.arguments = args
+        server.arguments = parsedArguments()
+        server.environment = parsedEnvironment()
         server.isEnabled = formEnabled
         try? modelContext.save()
 
@@ -279,6 +284,22 @@ struct MCPServerSettingsView: View {
         }
         try? modelContext.save()
         registerServers()
+    }
+
+    private func parsedArguments() -> [String] {
+        formArgumentsText
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func parsedEnvironment() -> [String: String]? {
+        let pairs = formEnvironmentEntries.reduce(into: [String: String]()) { partialResult, entry in
+            let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { return }
+            partialResult[key] = entry.value
+        }
+        return pairs.isEmpty ? nil : pairs
     }
 
     private func connectionColor(for lifecycle: MCPServerRuntimeState.Lifecycle) -> Color {

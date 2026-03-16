@@ -81,9 +81,16 @@ struct MainView: View {
             } detail: {
                 Group {
                     if let conversation = chatViewModel.selectedConversation {
-                        ChatView(conversation: conversation, chatViewModel: chatViewModel)
+                        ChatView(
+                            conversation: conversation,
+                            chatViewModel: chatViewModel,
+                            agentViewModel: agentViewModel
+                        )
                     } else {
-                        LaunchConversationView(chatViewModel: chatViewModel)
+                        LaunchConversationView(
+                            chatViewModel: chatViewModel,
+                            agentViewModel: agentViewModel
+                        )
                     }
                 }
                 .toolbar {
@@ -179,7 +186,7 @@ struct MainView: View {
             CommandPaletteItem(
                 id: "open-skills",
                 title: "Open Skills",
-                subtitle: "Browse and edit saved skill sequences.",
+                subtitle: "Browse installed SKILL.md skills from configured roots.",
                 systemImage: "wand.and.stars",
                 category: "Quick Action",
                 keywords: ["skills", "tools", "automation"]
@@ -274,14 +281,14 @@ struct MainView: View {
 
         items.append(contentsOf: skillViewModel.skills.map { skill in
             CommandPaletteItem(
-                id: "skill-\(skill.id.uuidString)",
+                id: "skill-\(skill.id)",
                 title: skill.name,
-                subtitle: skill.descriptionText.isEmpty ? "Saved skill" : skill.descriptionText,
+                subtitle: skill.descriptionText.isEmpty ? skill.sourceLabel : skill.descriptionText,
                 systemImage: "wand.and.stars",
                 category: "Skill",
-                keywords: skill.toolSequence.map { "\($0.serverName) \($0.toolName)" }
+                keywords: skill.headings + [skill.sourceLabel]
             ) {
-                skillViewModel.selectedSkill = skill
+                skillViewModel.selectSkill(skill)
                 showSkills = true
             }
         })
@@ -304,6 +311,7 @@ private struct LaunchConversationView: View {
     @Environment(AppState.self) private var appState
 
     @Bindable var chatViewModel: ChatViewModel
+    @Bindable var agentViewModel: AgentViewModel
 
     @State private var isTargetingFileDrop = false
 
@@ -344,17 +352,25 @@ private struct LaunchConversationView: View {
     private var chatInput: some View {
         ChatInputView(
             text: $chatViewModel.inputText,
+            composerMode: Binding(
+                get: { chatViewModel.composerMode },
+                set: { chatViewModel.composerMode = $0 }
+            ),
             attachments: chatViewModel.pendingAttachments,
-            canSend: chatViewModel.canSendCurrentInput,
+            canSend: chatViewModel.canSendInCurrentMode,
             isGenerating: chatViewModel.isGenerating,
+            isAgentBusy: agentViewModel.currentTask != nil,
             isProcessingDrop: chatViewModel.isProcessingAttachmentDrop,
             isDropTargeted: isTargetingFileDrop,
             selectedModel: appState.selectedModel,
             availableModels: appState.availableModels,
             isCurrentModelAvailable: isCurrentModelAvailable,
             modelSelection: launchModelSelection,
-            onSend: {
+            onSendChat: {
                 Task { await chatViewModel.send(appState: appState) }
+            },
+            onSendAgent: {
+                Task { await runAgentFromLaunch() }
             },
             onStop: {
                 chatViewModel.stopGenerating()
@@ -378,6 +394,30 @@ private struct LaunchConversationView: View {
 
     private var isCurrentModelAvailable: Bool {
         appState.availableModels.contains { $0.name == appState.selectedModel }
+    }
+
+    private func runAgentFromLaunch() async {
+        guard chatViewModel.pendingAttachments.isEmpty else {
+            chatViewModel.error = "Attachments are only supported in chat mode."
+            return
+        }
+
+        let prompt = chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+
+        let conversation = chatViewModel.selectedConversation ?? chatViewModel.createConversation(model: appState.selectedModel)
+        chatViewModel.inputText = ""
+        chatViewModel.error = nil
+
+        do {
+            try await agentViewModel.runAgent(
+                prompt: prompt,
+                model: conversation.model,
+                conversation: conversation
+            )
+        } catch {
+            chatViewModel.error = error.localizedDescription
+        }
     }
 
     private var errorBinding: Binding<Bool> {

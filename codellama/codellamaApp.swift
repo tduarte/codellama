@@ -11,13 +11,13 @@ import SwiftData
 @main
 struct codellamaApp: App {
     @State private var appState = AppState()
+    @State private var skillViewModel = SkillViewModel()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Conversation.self,
             ChatMessage.self,
             MCPServerConfig.self,
-            Skill.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -38,7 +38,7 @@ struct codellamaApp: App {
                     modelContext: sharedModelContainer.mainContext,
                     contextIndexManager: appState.contextIndexManager
                 ),
-                skillViewModel: SkillViewModel(modelContext: sharedModelContainer.mainContext)
+                skillViewModel: skillViewModel
             )
             .environment(appState)
             .task { await appState.startup(modelContext: sharedModelContainer.mainContext) }
@@ -55,7 +55,7 @@ struct codellamaApp: App {
         }
 
         Settings {
-            SettingsView(skillViewModel: SkillViewModel(modelContext: sharedModelContainer.mainContext))
+            SettingsView(skillViewModel: skillViewModel)
                 .environment(appState)
         }
         .defaultSize(width: 860, height: 680)

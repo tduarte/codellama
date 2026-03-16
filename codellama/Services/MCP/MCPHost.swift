@@ -159,12 +159,13 @@ final class MCPHost {
         }
 
         let connection = MCPServerConnection(config: config)
+        let serverName = config.name
         do {
             try await connection.connect(
                 processManager: processManager,
                 onUnexpectedTermination: { [weak self] exitCode in
                     Task { @MainActor [weak self] in
-                        await self?.handleUnexpectedTermination(serverName: config.name, exitCode: exitCode)
+                        await self?.handleUnexpectedTermination(serverName: serverName, exitCode: exitCode)
                     }
                 }
             )

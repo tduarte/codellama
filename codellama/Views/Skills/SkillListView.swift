@@ -1,32 +1,14 @@
-//
-//  SkillListView.swift
-//  codellama
-//
-//  Created by Codex on 3/14/26.
-//
-
 import SwiftUI
-import SwiftData
 
 struct SkillListView: View {
     @Bindable var skillViewModel: SkillViewModel
     var isSettingsContext: Bool = false
 
     var body: some View {
-        Group {
-            if isSettingsContext {
-                HStack(spacing: 0) {
-                    sidebarPane
-                    Divider()
-                    detailPane
-                }
-            } else {
-                HStack(spacing: 0) {
-                    sidebarPane
-                    Divider()
-                    detailPane
-                }
-            }
+        HStack(spacing: 0) {
+            sidebarPane
+            Divider()
+            detailPane
         }
         .environment(\.defaultMinListRowHeight, 30)
         .onAppear {
@@ -47,20 +29,20 @@ struct SkillListView: View {
                 Text("Skills")
                     .font(.title2.weight(.semibold))
                 Spacer()
-
                 if isSettingsContext {
                     Button {
-                        skillViewModel.createSkill()
+                        skillViewModel.refreshSkills()
                     } label: {
-                        Label("Create Skill", systemImage: "plus")
+                        Label("Refresh", systemImage: "arrow.clockwise")
                     }
                     .buttonStyle(.borderedProminent)
                 } else {
                     Button {
-                        skillViewModel.createSkill()
+                        skillViewModel.refreshSkills()
                     } label: {
-                        Label("New Skill", systemImage: "plus")
+                        Label("Refresh", systemImage: "arrow.clockwise")
                     }
+                    .buttonStyle(.bordered)
                 }
             }
             .padding(.horizontal, 16)
@@ -69,98 +51,98 @@ struct SkillListView: View {
             Divider()
 
             ZStack {
-                skillList
+                List(selection: selectionBinding) {
+                    if !skillViewModel.skills.isEmpty {
+                        Section("Installed") {
+                            ForEach(skillViewModel.skills) { skill in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(skill.name)
+                                        .font(.headline)
 
-                if skillViewModel.skills.isEmpty {
+                                    Text(skill.descriptionText.isEmpty ? skill.sourceLabel : skill.descriptionText)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                                .padding(.vertical, 4)
+                                .tag(skill.id)
+                            }
+                        }
+                    }
+
+                    if !skillViewModel.issues.isEmpty {
+                        Section("Issues") {
+                            ForEach(skillViewModel.issues) { issue in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(issue.directoryURL.lastPathComponent)
+                                        .font(.headline)
+
+                                    Text(issue.message)
+                                        .font(.caption)
+                                        .foregroundStyle(.red)
+                                        .lineLimit(3)
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+
+                if skillViewModel.skills.isEmpty && skillViewModel.issues.isEmpty {
                     ContentUnavailableView(
-                        "No Skills Yet",
+                        "No Skills Found",
                         systemImage: "wand.and.rays",
-                        description: Text("Create a reusable workflow, then select it to edit details.")
+                        description: Text("Add shared SKILL.md skills to one of the scanned roots, then refresh.")
                     )
                 }
             }
-
-            if !isSettingsContext && !skillViewModel.skills.isEmpty {
-                Divider()
-                HStack {
-                    Spacer()
-                    Button(role: .destructive) {
-                        if let selectedSkill = skillViewModel.selectedSkill {
-                            skillViewModel.deleteSkill(selectedSkill)
-                        }
-                    } label: {
-                        Label("Delete Skill", systemImage: "trash")
-                    }
-                    .disabled(skillViewModel.selectedSkill == nil)
-                    Spacer()
-                }
-                .padding(.vertical, 8)
-            }
         }
-        .frame(minWidth: 300, idealWidth: 320)
+        .frame(minWidth: 320, idealWidth: 340)
         .background(.regularMaterial)
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(.quaternary.opacity(0.7))
-                .frame(width: 1)
-        }
-    }
-
-    private var skillList: some View {
-        List(selection: $skillViewModel.selectedSkill) {
-            ForEach(skillViewModel.skills) { skill in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(skill.name)
-                        .font(.headline)
-
-                    Text(skill.descriptionText.isEmpty ? "No description" : skill.descriptionText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                .padding(.vertical, 4)
-                .tag(skill)
-                .contextMenu {
-                    Button(role: .destructive) {
-                        skillViewModel.deleteSkill(skill)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                }
-            }
-            .onDelete { offsets in
-                for offset in offsets {
-                    skillViewModel.deleteSkill(skillViewModel.skills[offset])
-                }
-            }
-        }
-        .listStyle(.sidebar)
     }
 
     @ViewBuilder
     private var detailPane: some View {
-        if let skill = skillViewModel.selectedSkill {
-            SkillComposerView(skill: skill, skillViewModel: skillViewModel)
+        if let selectedSkill = skillViewModel.selectedSkill {
+            SkillDetailView(skill: selectedSkill)
         } else {
-            ContentUnavailableView {
-                Label("No Skill Selected", systemImage: "wand.and.stars")
-            } description: {
-                Text(skillViewModel.skills.isEmpty
-                    ? "Create a skill to define a reusable MCP tool sequence."
-                    : "Select a skill from the list to edit its steps and prompt.")
-            } actions: {
-                if skillViewModel.skills.isEmpty {
-                    Button("Create Skill") {
-                        skillViewModel.createSkill()
-                    }
-                    .buttonStyle(.borderedProminent)
-                } else {
-                    Text("Choose an item in the left pane.")
+            VStack(alignment: .leading, spacing: 16) {
+                ContentUnavailableView {
+                    Label("No Skill Selected", systemImage: "wand.and.stars")
+                } description: {
+                    Text("Select an installed skill to inspect its metadata and instructions.")
+                }
+
+                scannedRootsSection
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(24)
+        }
+    }
+
+    private var scannedRootsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Scanned Roots")
+                .font(.headline)
+
+            ForEach(skillViewModel.scannedRoots) { root in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(root.source.label)
+                    Text(root.directoryURL.path())
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
             }
         }
+    }
+
+    private var selectionBinding: Binding<String?> {
+        Binding(
+            get: { skillViewModel.selectedSkillID },
+            set: { skillViewModel.selectedSkillID = $0 }
+        )
     }
 
     private var errorBinding: Binding<Bool> {
@@ -172,5 +154,125 @@ struct SkillListView: View {
                 }
             }
         )
+    }
+}
+
+private struct SkillDetailView: View {
+    let skill: InstalledSkill
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                header
+                metadataSection
+
+                if !skill.shadowedLocations.isEmpty {
+                    duplicatesSection
+                }
+
+                if !skill.relatedContextFiles.isEmpty {
+                    relatedContextSection
+                }
+
+                instructionsSection
+            }
+            .padding(24)
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(skill.name)
+                .font(.title2.weight(.semibold))
+
+            Text(skill.descriptionText.isEmpty ? "No description provided." : skill.descriptionText)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var metadataSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Metadata")
+                .font(.headline)
+
+            metadataRow("Source", value: skill.sourceLabel)
+            metadataRow("Directory", value: skill.directoryURL.path())
+            metadataRow("Skill File", value: skill.skillFileURL.path())
+
+            if let lastModifiedAt = skill.lastModifiedAt {
+                metadataRow("Last Modified", value: lastModifiedAt.formatted(date: .abbreviated, time: .shortened))
+            }
+
+            if !skill.headings.isEmpty {
+                metadataRow("Headings", value: skill.headings.joined(separator: " • "))
+            }
+        }
+    }
+
+    private var duplicatesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Shadowed Duplicates")
+                .font(.headline)
+
+            ForEach(skill.shadowedLocations) { duplicate in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(duplicate.sourceLabel)
+                    Text(duplicate.directoryURL.path())
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+    }
+
+    private var relatedContextSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Referenced Context")
+                .font(.headline)
+
+            ForEach(skill.relatedContextFiles, id: \.relativePath) { file in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(file.relativePath)
+                        .font(.subheadline.weight(.semibold))
+
+                    Text(file.content)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(.fill.quaternary)
+                        )
+                }
+            }
+        }
+    }
+
+    private var instructionsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Instructions")
+                .font(.headline)
+
+            Text(skill.body)
+                .font(.body)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.fill.quaternary)
+                )
+        }
+    }
+
+    private func metadataRow(_ label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .textSelection(.enabled)
+        }
     }
 }

@@ -12,7 +12,6 @@ Use it as the default workflow for any code change in this repository:
 
 - After any change, build with the Xcode MCP and inspect errors and warnings before finishing.
 - Use Xcode MCP diagnostics first when debugging regressions, runtime issues, or build failures.
-- For front-end or SwiftUI changes, render the relevant preview or run the app and capture a screenshot through Xcode before finishing.
 - When implementing an app behavior, UI pattern, or framework API for the first time in this project, check Apple's documentation and Human Interface Guidelines first.
 - When working in a git worktree, always open the Xcode project from that specific worktree so the user can run the exact checkout you changed.
 
@@ -125,7 +124,6 @@ macOS SwiftUI app (MVVM + SwiftData) for chatting with local Ollama models with 
 - This is a **SwiftUI-first** project. Build and modify UI in SwiftUI views and view models.
 - Do not treat this as an AppKit UI codebase.
 - Use AppKit only for macOS-specific integrations where SwiftUI has no equivalent (for example, `NSSavePanel` or `NSOpenPanel`).
-- If a proposed fix would require introducing AppKit, an AppKit bridge, or `NSViewRepresentable` for UI behavior, stop and ask the user to confirm before making edits.
 
 ### Entry Point & Lifecycle
 
@@ -255,18 +253,3 @@ Tools from different servers are registered as `serverName__toolName` (double un
 
 ### 6. `AgentViewModel` initialization in `codellamaApp.swift`
 `AgentViewModel` is initialized with `appState.ollamaClient ?? OllamaClient()`. Before `AppState.startup()` completes, `ollamaClient` is `nil` so it falls back to a default client. Agent features should only be accessible when `appState.status == .ready`.
-
----
-
-## What to Work on Next (Phase 4)
-
-Current Phase 4 candidates:
-
-1. Parallel tool execution in `MCPHost` via `TaskGroup`
-2. Auto-restart crashed MCP servers in `MCPProcessManager`
-3. Server health status indicators in the UI
-4. SQLite-backed persistent vector store
-5. Cmd+K command palette
-6. Drag-and-drop files into chat context
-7. Conversation search and export
-8. Debounced UI updates and request cancellation

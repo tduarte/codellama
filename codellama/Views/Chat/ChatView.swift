@@ -13,6 +13,7 @@ struct ChatView: View {
 
     @Bindable var conversation: Conversation
     @Bindable var chatViewModel: ChatViewModel
+    @Bindable var agentViewModel: AgentViewModel
     @State private var isTargetingFileDrop = false
     @State private var didInitialScroll = false
 
@@ -99,17 +100,25 @@ struct ChatView: View {
     private var chatInput: some View {
         ChatInputView(
             text: $chatViewModel.inputText,
+            composerMode: Binding(
+                get: { chatViewModel.composerMode },
+                set: { chatViewModel.composerMode = $0 }
+            ),
             attachments: chatViewModel.pendingAttachments,
-            canSend: chatViewModel.canSendCurrentInput,
+            canSend: chatViewModel.canSendInCurrentMode,
             isGenerating: chatViewModel.isGenerating,
+            isAgentBusy: agentViewModel.currentTask != nil,
             isProcessingDrop: chatViewModel.isProcessingAttachmentDrop,
             isDropTargeted: isTargetingFileDrop,
             selectedModel: conversation.model,
             availableModels: appState.availableModels,
             isCurrentModelAvailable: isCurrentModelAvailable,
             modelSelection: modelSelection,
-            onSend: {
+            onSendChat: {
                 Task { await chatViewModel.send(appState: appState) }
+            },
+            onSendAgent: {
+                Task { await runAgent(for: conversation) }
             },
             onStop: {
                 chatViewModel.stopGenerating()
@@ -163,6 +172,29 @@ struct ChatView: View {
 
         withAnimation(.spring(duration: 0.3, bounce: 0.1)) {
             proxy.scrollTo(lastMessage.id, anchor: .bottom)
+        }
+    }
+
+    private func runAgent(for conversation: Conversation) async {
+        guard chatViewModel.pendingAttachments.isEmpty else {
+            chatViewModel.error = "Attachments are only supported in chat mode."
+            return
+        }
+
+        let prompt = chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+
+        chatViewModel.inputText = ""
+        chatViewModel.error = nil
+
+        do {
+            try await agentViewModel.runAgent(
+                prompt: prompt,
+                model: conversation.model,
+                conversation: conversation
+            )
+        } catch {
+            chatViewModel.error = error.localizedDescription
         }
     }
 }

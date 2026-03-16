@@ -12,6 +12,22 @@ import AppKit
 import PDFKit
 import UniformTypeIdentifiers
 
+enum ComposerMode: String, CaseIterable, Identifiable {
+    case chat
+    case agent
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .chat:
+            return "Chat"
+        case .agent:
+            return "Agent"
+        }
+    }
+}
+
 struct PendingChatAttachment: Identifiable, Equatable {
     enum Kind: String, Equatable {
         case text
@@ -95,6 +111,7 @@ final class ChatViewModel {
     var selectedConversation: Conversation?
     var searchText: String = ""
     var inputText: String = ""
+    var composerMode: ComposerMode = .chat
     var isGenerating: Bool = false
     var isProcessingAttachmentDrop: Bool = false
     var pendingAttachments: [PendingChatAttachment] = []
@@ -199,6 +216,15 @@ final class ChatViewModel {
         !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty
     }
 
+    var canSendInCurrentMode: Bool {
+        switch composerMode {
+        case .chat:
+            return canSendCurrentInput
+        case .agent:
+            return !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && pendingAttachments.isEmpty
+        }
+    }
+
     var hasPendingImageAttachments: Bool {
         pendingAttachments.contains { $0.kind == .image }
     }
@@ -250,59 +276,65 @@ final class ChatViewModel {
 
             do {
                 let ollamaMessages = buildMessages(for: conversation)
+                let shouldStreamResponses = Defaults[.streamResponses]
                 let request = OllamaChatRequest(
                     model: conversation.model,
                     messages: ollamaMessages,
-                    stream: true
+                    stream: shouldStreamResponses
                 )
 
-                // Accumulate tokens between flushes so SwiftUI re-renders at most every
-                // 50 ms instead of on every individual token.
-                var pendingContent = ""
-                var lastFlushTime = ContinuousClock.now
-                let flushInterval: Duration = .milliseconds(50)
+                if shouldStreamResponses {
+                    // Accumulate tokens between flushes so SwiftUI re-renders at most every
+                    // 50 ms instead of on every individual token.
+                    var pendingContent = ""
+                    var lastFlushTime = ContinuousClock.now
+                    let flushInterval: Duration = .milliseconds(50)
 
-                for try await chunk in await client.chatStream(request: request) {
-                    if Task.isCancelled { break }
+                    for try await chunk in await client.chatStream(request: request) {
+                        if Task.isCancelled { break }
 
-                    if let content = chunk.message?.content {
-                        pendingContent += content
-                    }
+                        if let content = chunk.message?.content {
+                            pendingContent += content
+                        }
 
-                    let now = ContinuousClock.now
-                    if now - lastFlushTime >= flushInterval, !pendingContent.isEmpty {
-                        assistantMessage.content += pendingContent
-                        pendingContent = ""
-                        lastFlushTime = now
-                    }
-
-                    if chunk.done {
-                        // Flush the remainder of the buffer at stream end.
-                        if !pendingContent.isEmpty {
+                        let now = ContinuousClock.now
+                        if now - lastFlushTime >= flushInterval, !pendingContent.isEmpty {
                             assistantMessage.content += pendingContent
                             pendingContent = ""
+                            lastFlushTime = now
                         }
-                        conversation.modifiedAt = .now
 
-                        // Auto-generate title from first exchange
-                        if conversation.messages.count <= 2 {
-                            generateTitle(client: client, conversation: conversation)
+                        if chunk.done {
+                            if !pendingContent.isEmpty {
+                                assistantMessage.content += pendingContent
+                                pendingContent = ""
+                            }
+                            conversation.modifiedAt = .now
+
+                            if conversation.messages.count <= 2 {
+                                generateTitle(client: client, conversation: conversation)
+                            }
                         }
                     }
-                }
 
-                // Flush any tokens accumulated after the last timed flush (cancellation path).
-                if !pendingContent.isEmpty {
-                    assistantMessage.content += pendingContent
-                }
-
-                // Handle cancellation: mark the response accordingly
-                if Task.isCancelled, !assistantMessage.content.isEmpty {
-                    // Close any open code blocks
-                    if assistantMessage.content.matches(of: /```/).count % 2 == 1 {
-                        assistantMessage.content += "\n```\n"
+                    if !pendingContent.isEmpty {
+                        assistantMessage.content += pendingContent
                     }
-                    assistantMessage.content += "\n\n_Generation stopped._"
+
+                    if Task.isCancelled, !assistantMessage.content.isEmpty {
+                        if assistantMessage.content.matches(of: /```/).count % 2 == 1 {
+                            assistantMessage.content += "\n```\n"
+                        }
+                        assistantMessage.content += "\n\n_Generation stopped._"
+                    }
+                } else {
+                    let chunk = try await client.chat(request: request)
+                    assistantMessage.content = chunk.message?.content ?? ""
+                    conversation.modifiedAt = .now
+
+                    if conversation.messages.count <= 2 {
+                        generateTitle(client: client, conversation: conversation)
+                    }
                 }
             } catch {
                 if !Task.isCancelled {

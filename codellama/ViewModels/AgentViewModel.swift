@@ -47,8 +47,8 @@ final class AgentViewModel {
     // MARK: - Actions
 
     /// Start the agentic loop for the given prompt.
-    func runAgent(prompt: String, model: String) async throws {
-        try await agentLoop.run(prompt: prompt, model: model)
+    func runAgent(prompt: String, model: String, conversation: Conversation) async throws {
+        try await agentLoop.run(prompt: prompt, model: model, conversation: conversation)
     }
 
     /// Approve the current plan and begin execution.

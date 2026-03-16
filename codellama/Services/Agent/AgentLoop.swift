@@ -25,12 +25,14 @@ final class AgentLoop {
     let mcpHost: MCPHost
     let modelContext: ModelContext
     let contextIndexManager: ContextIndexManager
+    let skillLoader: InstalledSkillLoader
 
     // MARK: - State
 
     private(set) var currentTask: AgentTask?
     private(set) var isRunning: Bool = false
     private var executionTask: Task<Void, Never>?
+    private var activeConversation: Conversation?
 
     // MARK: - Init
 
@@ -38,12 +40,14 @@ final class AgentLoop {
         ollamaClient: OllamaClient,
         mcpHost: MCPHost,
         modelContext: ModelContext,
-        contextIndexManager: ContextIndexManager
+        contextIndexManager: ContextIndexManager,
+        skillLoader: InstalledSkillLoader = InstalledSkillLoader()
     ) {
         self.ollamaClient = ollamaClient
         self.mcpHost = mcpHost
         self.modelContext = modelContext
         self.contextIndexManager = contextIndexManager
+        self.skillLoader = skillLoader
     }
 
     // MARK: - Run
@@ -54,66 +58,75 @@ final class AgentLoop {
     /// - Sets `currentTask.phase` to `.awaitingApproval` so the UI can show
     ///   the plan for review.
     /// - Does NOT execute the plan — call `approvePlan()` for that.
-    func run(prompt: String, model: String) async throws {
+    func run(prompt: String, model: String, conversation: Conversation) async throws {
         isRunning = true
 
-        var task = AgentTask(prompt: prompt, phase: .architecting)
+        var task = AgentTask(prompt: prompt, model: model, phase: .architecting)
         currentTask = task
-
-        let skills = fetchSkills()
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        activeConversation = conversation
 
-        if let invokedSkill = resolveInvokedSkill(from: trimmedPrompt, skills: skills) {
-            let plan = makePlan(for: invokedSkill, prompt: prompt)
+        persistMessage(
+            ChatMessage(role: "user", content: prompt),
+            in: conversation
+        )
+
+        do {
+            let invokedSkill = try resolveInvokedSkill(from: trimmedPrompt)
+            if let invokedSkill {
+                task.timeline.append(TimelineEvent(
+                    type: .contextGathered,
+                    summary: "Loaded installed skill '\(invokedSkill.name)'",
+                    detail: invokedSkill.descriptionText.isEmpty ? invokedSkill.sourceLabel : invokedSkill.descriptionText
+                ))
+            }
+
+            let contextBuilder = ContextBuilder(
+                mcpHost: mcpHost,
+                embeddingService: EmbeddingService(ollamaClient: ollamaClient),
+                vectorStore: contextIndexManager.vectorStore
+            )
+            let planPrompt = normalizedPrompt(prompt, using: invokedSkill)
+            let contextMap = await contextBuilder.buildContextMap(
+                for: planPrompt,
+                embeddingModel: Defaults[.embeddingModel]
+            )
+
+            task.phase = .planning
+            task.timeline.append(TimelineEvent(
+                type: .contextGathered,
+                summary: "Context gathered",
+                detail: contextMap.summary
+            ))
+            currentTask = task
+
+            let generator = PlanGenerator(ollamaClient: ollamaClient, mcpHost: mcpHost)
+            let plan = try await generator.generatePlan(
+                prompt: planPrompt,
+                context: contextMap,
+                invokedSkill: invokedSkill,
+                model: model
+            )
+
             task.plan = plan
             task.timeline.append(TimelineEvent(
                 type: .planGenerated,
-                summary: "Loaded saved skill '\(invokedSkill.name)'",
-                detail: invokedSkill.descriptionText
+                summary: "Plan generated with \(plan.steps.count) step(s)"
             ))
+            persistPlanningMessage(for: plan, invokedSkill: invokedSkill, in: conversation)
+
             task.phase = .awaitingApproval
             currentTask = task
             isRunning = false
-            return
+        } catch {
+            task.phase = .failed
+            task.completedAt = .now
+            task.timeline.append(TimelineEvent(type: .error, summary: "Planning failed", detail: error.localizedDescription))
+            currentTask = task
+            persistMessage(ChatMessage(role: "assistant", content: "Agent planning failed: \(error.localizedDescription)"), in: conversation)
+            isRunning = false
+            throw error
         }
-
-        // Phase 1: Gather context from MCP resources
-        let contextBuilder = ContextBuilder(
-            mcpHost: mcpHost,
-            embeddingService: EmbeddingService(ollamaClient: ollamaClient),
-            vectorStore: contextIndexManager.vectorStore
-        )
-        let contextMap = await contextBuilder.buildContextMap(
-            for: prompt,
-            embeddingModel: Defaults[.embeddingModel]
-        )
-
-        task.phase = .planning
-        task.timeline.append(TimelineEvent(
-            type: .contextGathered,
-            summary: "Context gathered",
-            detail: contextMap.summary
-        ))
-        currentTask = task
-
-        // Phase 2: Generate the execution plan
-        let generator = PlanGenerator(ollamaClient: ollamaClient, mcpHost: mcpHost)
-        let plan = try await generator.generatePlan(
-            prompt: prompt,
-            context: contextMap,
-            skillSummaries: skills.map(skillSummary(for:)),
-            model: model
-        )
-
-        task.plan = plan
-        task.timeline.append(TimelineEvent(
-            type: .planGenerated,
-            summary: "Plan generated with \(plan.steps.count) step(s)"
-        ))
-
-        task.phase = .awaitingApproval
-        currentTask = task
-        isRunning = false
     }
 
     // MARK: - Approval
@@ -121,7 +134,7 @@ final class AgentLoop {
     /// Execute the current plan after user approval.
     func approvePlan() async {
         guard var task = currentTask,
-              var plan = task.plan,
+              let plan = task.plan,
               task.phase == .awaitingApproval else { return }
 
         isRunning = true
@@ -148,64 +161,33 @@ final class AgentLoop {
             type: .cancelled,
             summary: "Task cancelled"
         ))
+        if let conversation = activeConversation {
+            persistMessage(
+                ChatMessage(role: "assistant", content: "Agent task cancelled."),
+                in: conversation
+            )
+        }
         isRunning = false
     }
 
     func dismissTask() {
         guard !isRunning else { return }
         currentTask = nil
+        activeConversation = nil
     }
 
-    private func fetchSkills() -> [Skill] {
-        let descriptor = FetchDescriptor<Skill>(sortBy: [
-            SortDescriptor(\Skill.updatedAt, order: .reverse),
-            SortDescriptor(\Skill.createdAt, order: .reverse)
-        ])
-
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    private func resolveInvokedSkill(from prompt: String, skills: [Skill]) -> Skill? {
+    private func resolveInvokedSkill(from prompt: String) throws -> InstalledSkill? {
         guard prompt.lowercased().hasPrefix("/skill ") else { return nil }
 
-        let requestedName = prompt.dropFirst("/skill ".count).trimmingCharacters(in: .whitespacesAndNewlines)
+        let requestedName = prompt
+            .dropFirst("/skill ".count)
+            .split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+            .first
+            .map(String.init)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !requestedName.isEmpty else { return nil }
 
-        return skills.first { $0.name.compare(requestedName, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
-    }
-
-    private func makePlan(for skill: Skill, prompt: String) -> ExecutionPlan {
-        let steps = skill.toolSequence.enumerated().map { index, toolCall in
-            AgentStep(
-                index: index,
-                description: "Run skill step \(index + 1): \(toolCall.toolName)",
-                toolCall: toolCall,
-                status: .pending
-            )
-        }
-
-        let contextSummary = [
-            "Invoked saved skill: \(skill.name)",
-            skill.descriptionText.isEmpty ? nil : skill.descriptionText,
-            "Invoke saved skills with `/skill <name>`."
-        ]
-            .compactMap { $0 }
-            .joined(separator: "\n")
-
-        return ExecutionPlan(
-            intent: prompt,
-            contextSummary: contextSummary,
-            steps: steps,
-            status: .awaitingApproval
-        )
-    }
-
-    private func skillSummary(for skill: Skill) -> String {
-        let firstTools = skill.toolSequence.prefix(3).map { "\($0.serverName)__\($0.toolName)" }
-        let toolPreview = firstTools.isEmpty ? "no tools yet" : firstTools.joined(separator: ", ")
-        let suffix = skill.toolSequence.count > 3 ? ", …" : ""
-        let description = skill.descriptionText.isEmpty ? "No description." : skill.descriptionText
-        return "- \(skill.name): \(description) Tools: \(toolPreview)\(suffix)"
+        return try skillLoader.resolveSkill(named: requestedName)
     }
 
     private func executeApprovedPlan(task: AgentTask, plan: ExecutionPlan) async {
@@ -235,6 +217,18 @@ final class AgentLoop {
                 summary: "\(step.toolCall.toolName): \(step.status.rawValue)",
                 detail: detail
             ))
+
+            if let conversation = activeConversation,
+               let result = step.result {
+                persistMessage(
+                    ChatMessage(
+                        role: "tool",
+                        content: result.content,
+                        toolCallId: step.toolCall.id
+                    ),
+                    in: conversation
+                )
+            }
         }
 
         task.plan = plan
@@ -263,8 +257,93 @@ final class AgentLoop {
             task.phase = .failed
         }
 
+        if let conversation = activeConversation {
+            let summary = await makeExecutionSummary(for: task, plan: plan)
+            persistMessage(ChatMessage(role: "assistant", content: summary), in: conversation)
+        }
+
         currentTask = task
         isRunning = false
         executionTask = nil
+        activeConversation = nil
+    }
+
+    private func normalizedPrompt(_ prompt: String, using invokedSkill: InstalledSkill?) -> String {
+        guard invokedSkill != nil else { return prompt }
+
+        let body = prompt
+            .dropFirst("/skill ".count)
+            .split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        guard body.count > 1 else {
+            return "Follow the installed skill instructions."
+        }
+
+        let residual = String(body[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return residual.isEmpty ? "Follow the installed skill instructions." : residual
+    }
+
+    private func persistPlanningMessage(for plan: ExecutionPlan, invokedSkill: InstalledSkill?, in conversation: Conversation) {
+        let headline = invokedSkill.map { "Installed skill: \($0.name)\n\n" } ?? ""
+        let body = plan.steps.isEmpty
+            ? "The model did not propose any tool calls for this request."
+            : plan.steps.map { step in
+                "- \(step.description)"
+            }.joined(separator: "\n")
+
+        let message = ChatMessage(role: "assistant", content: headline + body)
+        message.toolCalls = plan.steps.map(\.toolCall)
+        persistMessage(message, in: conversation)
+    }
+
+    private func persistMessage(_ message: ChatMessage, in conversation: Conversation) {
+        message.conversation = conversation
+        conversation.messages.append(message)
+        conversation.modifiedAt = .now
+        modelContext.insert(message)
+        try? modelContext.save()
+    }
+
+    private func makeExecutionSummary(for task: AgentTask, plan: ExecutionPlan) async -> String {
+        let resultsSummary = plan.steps.map { step in
+            let content = step.result?.content ?? "No output."
+            return """
+            [\(step.toolCall.serverName)__\(step.toolCall.toolName)] \(step.status.rawValue)
+            \(content)
+            """
+        }.joined(separator: "\n\n")
+
+        let request = OllamaChatRequest(
+            model: task.model,
+            messages: [
+                OllamaChatMessage(
+                    role: .system,
+                    content: "Summarize executed tool results for the user. Mention failures plainly and avoid inventing details."
+                ),
+                OllamaChatMessage(role: .user, content: task.prompt),
+                OllamaChatMessage(role: .user, content: resultsSummary)
+            ],
+            stream: false
+        )
+
+        do {
+            let chunk = try await ollamaClient.chat(request: request)
+            let summary = chunk.message?.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !summary.isEmpty {
+                return summary
+            }
+        } catch {
+            // Fall back to a local summary below.
+        }
+
+        switch plan.status {
+        case .completed:
+            return "Completed \(plan.steps.count) tool step(s). Review the tool results above for details."
+        case .failed:
+            return "Finished with errors after \(plan.steps.count) tool step(s). Review the tool results above for details."
+        case .cancelled:
+            return "Execution was cancelled."
+        case .draft, .awaitingApproval, .executing:
+            return "Execution stopped before a final summary was available."
+        }
     }
 }

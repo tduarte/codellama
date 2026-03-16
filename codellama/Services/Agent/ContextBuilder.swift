@@ -34,13 +34,14 @@ struct ContextBuilder {
     ///
     /// Errors from individual servers are silently swallowed — a partial
     /// context map is still useful for planning.
+    @MainActor
     func buildContextMap(for prompt: String, embeddingModel: String? = nil) async -> ContextMap {
         var map = ContextMap()
         var summaryLines: [String] = []
         var ragErrors: [String] = []
         let chunkIndexer = makeChunkIndexer()
 
-        for (serverName, connection) in await mcpHost.connections {
+        for (serverName, connection) in mcpHost.connections {
             guard connection.isConnected else { continue }
 
             do {

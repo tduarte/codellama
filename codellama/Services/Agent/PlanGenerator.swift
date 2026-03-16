@@ -24,14 +24,36 @@ struct PlanGenerator {
     func generatePlan(
         prompt: String,
         context: ContextBuilder.ContextMap,
-        skillSummaries: [String],
+        invokedSkill: InstalledSkill?,
         model: String
     ) async throws -> ExecutionPlan {
-        let skillsSection: String
-        if skillSummaries.isEmpty {
-            skillsSection = "Saved skills:\nNone"
+        let skillSection: String
+        if let invokedSkill {
+            var lines = [
+                "Installed skill context:",
+                "- Name: \(invokedSkill.name)",
+                invokedSkill.descriptionText.isEmpty ? nil : "- Description: \(invokedSkill.descriptionText)",
+                "- Source: \(invokedSkill.sourceLabel)",
+                "",
+                "Instructions:",
+                invokedSkill.body
+            ]
+                .compactMap { $0 }
+
+            if !invokedSkill.relatedContextFiles.isEmpty {
+                lines.append("")
+                lines.append("Referenced files:")
+                lines.append(contentsOf: invokedSkill.relatedContextFiles.map { file in
+                    """
+                    [\(file.relativePath)]
+                    \(file.content)
+                    """
+                })
+            }
+
+            skillSection = lines.joined(separator: "\n")
         } else {
-            skillsSection = "Saved skills:\n" + skillSummaries.joined(separator: "\n")
+            skillSection = "Installed skill context:\nNone"
         }
 
         let systemMessage = OllamaChatMessage(
@@ -46,7 +68,7 @@ struct PlanGenerator {
             Context:
             \(context.summary)
 
-            \(skillsSection)
+            \(skillSection)
             """
         )
 

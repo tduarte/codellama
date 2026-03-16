@@ -9,16 +9,19 @@ import SwiftUI
 
 struct ChatInputView: View {
     @Binding var text: String
+    var composerMode: Binding<ComposerMode>
     let attachments: [PendingChatAttachment]
     var canSend: Bool
     var isGenerating: Bool
+    var isAgentBusy: Bool
     var isProcessingDrop: Bool
     var isDropTargeted: Bool
     var selectedModel: String
     var availableModels: [OllamaModel]
     var isCurrentModelAvailable: Bool
     var modelSelection: Binding<String>
-    var onSend: () -> Void
+    var onSendChat: () -> Void
+    var onSendAgent: () -> Void
     var onStop: () -> Void
     var onRemoveAttachment: (PendingChatAttachment) -> Void
 
@@ -27,6 +30,7 @@ struct ChatInputView: View {
 
     private let minEditorHeight: CGFloat = 40
     private let maxEditorHeight: CGFloat = 300
+    private var isBusy: Bool { isGenerating || isAgentBusy }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -38,6 +42,7 @@ struct ChatInputView: View {
                 textField
 
                 HStack(spacing: 8) {
+                    modePicker
                     Spacer()
                     modelPickerButton
                     actionButton
@@ -90,12 +95,12 @@ struct ChatInputView: View {
             .font(.body)
             .scrollContentBackground(.hidden)
             .focused($isFocused)
-            .disabled(isGenerating)
+            .disabled(isBusy)
             .frame(height: editorHeight)
             .padding(.horizontal, 8)
             .overlay(alignment: .topLeading) {
                 if text.isEmpty {
-                    Text("Send a message or drop files...")
+                    Text(composerMode.wrappedValue == .chat ? "Send a message or drop files..." : "Describe the agent task or invoke /skill <name>...")
                         .foregroundStyle(.placeholder)
                         .padding(.leading, 13)
                         .padding(.top, 1)
@@ -109,14 +114,25 @@ struct ChatInputView: View {
                 if keyPress.modifiers.contains(.shift) {
                     return .ignored
                 }
-                if canSend && !isGenerating {
-                    onSend()
+                if canSend && !isBusy {
+                    sendCurrentMode()
                 }
                 return .handled
             }
     }
 
     // MARK: - Model Picker
+
+    private var modePicker: some View {
+        Picker("Mode", selection: composerMode) {
+            ForEach(ComposerMode.allCases) { mode in
+                Text(mode.title).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 150)
+        .disabled(isBusy)
+    }
 
     private var selectedModelDisplayName: String {
         availableModels.first(where: { $0.name == selectedModel })?.displayName ?? selectedModel
@@ -148,21 +164,21 @@ struct ChatInputView: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .disabled(isGenerating)
+        .disabled(isBusy)
     }
 
     // MARK: - Action Button
 
     private var actionButton: some View {
-        Button(action: isGenerating ? onStop : onSend) {
+        Button(action: isGenerating ? onStop : sendCurrentMode) {
             Image(systemName: isGenerating ? "stop.circle.fill" : "arrow.up.circle.fill")
                 .font(.title)
                 .foregroundStyle(isGenerating ? AnyShapeStyle(.red) : AnyShapeStyle(.tint))
                 .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(.borderless)
-        .disabled(!isGenerating && !canSend)
-        .help(isGenerating ? "Stop generating" : "Send message")
+        .disabled(!isGenerating && (!canSend || isAgentBusy))
+        .help(isGenerating ? "Stop generating" : composerMode.wrappedValue == .chat ? "Send chat message" : "Send agent request")
     }
 
     @ViewBuilder
@@ -177,6 +193,10 @@ struct ChatInputView: View {
                     Label("Reading dropped files…", systemImage: "doc.badge.plus")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
+                } else if composerMode.wrappedValue == .agent, !attachments.isEmpty {
+                    Label("Attachments stay in chat mode only.", systemImage: "exclamationmark.triangle")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.orange)
                 } else if !attachments.isEmpty {
                     Text("\(attachments.count) file\(attachments.count == 1 ? "" : "s") attached")
                         .font(.subheadline.weight(.medium))
@@ -229,6 +249,15 @@ struct ChatInputView: View {
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(isDropTargeted ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.separator), style: StrokeStyle(lineWidth: isDropTargeted ? 1 : 0.5, dash: isDropTargeted ? [6] : []))
             )
+        }
+    }
+
+    private func sendCurrentMode() {
+        switch composerMode.wrappedValue {
+        case .chat:
+            onSendChat()
+        case .agent:
+            onSendAgent()
         }
     }
 }
