@@ -16,8 +16,6 @@ struct ConversationEmptyStateView: View {
     let onStarterSelected: (ConversationStarter) -> Void
     let onExploreMore: () -> Void
 
-    @State private var starterCardHeight: CGFloat = 0
-
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
@@ -139,10 +137,6 @@ struct ConversationEmptyStateView: View {
             }
         }
         .frame(maxWidth: 1100)
-        .onPreferenceChange(StarterCardHeightPreferenceKey.self) { height in
-            guard height > 0 else { return }
-            starterCardHeight = height
-        }
     }
 
     private func starterCard(_ starter: ConversationStarter) -> some View {
@@ -166,21 +160,11 @@ struct ConversationEmptyStateView: View {
                     .font(.title3.weight(.medium))
                     .multilineTextAlignment(.leading)
                     .foregroundStyle(.primary)
-                    .lineLimit(nil)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
                     .layoutPriority(1)
-
-                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(22)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear
-                        .preference(key: StarterCardHeightPreferenceKey.self, value: proxy.size.height)
-                }
-            )
-            .frame(height: starterCardHeight == 0 ? nil : starterCardHeight, alignment: .topLeading)
             .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .glassEffect(.regular, in: .rect(cornerRadius: 28))
         }
@@ -189,13 +173,5 @@ struct ConversationEmptyStateView: View {
 
     private var selectedModelDisplayName: String {
         availableModels.first(where: { $0.name == selectedModel })?.displayName ?? selectedModel
-    }
-}
-
-private struct StarterCardHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }
