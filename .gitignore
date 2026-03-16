@@ -34,3 +34,4 @@ playground.xcworkspace
 *.trace
 /.cursor
 /screenshots
+/.codex
