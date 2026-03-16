@@ -327,6 +327,30 @@ struct OllamaModel: Codable, Sendable, Identifiable {
         let base = name.split(separator: ":").first.map(String.init) ?? name
         return base.prefix(1).uppercased() + base.dropFirst()
     }
+
+    /// The tag portion of the model name after ":" (e.g. "latest", "8b").
+    var tag: String? {
+        let parts = name.split(separator: ":")
+        guard parts.count >= 2 else { return nil }
+        return String(parts[1])
+    }
+
+    /// Human-readable size string (e.g. "4.7 GB", "512 MB").
+    var formattedSize: String? {
+        guard let size, size > 0 else { return nil }
+        if size >= 1_000_000_000 {
+            return String(format: "%.1f GB", Double(size) / 1_000_000_000)
+        } else {
+            return String(format: "%.0f MB", Double(size) / 1_000_000)
+        }
+    }
+
+    /// Combined subtitle: size + tag in parentheses (e.g. "4.7 GB (8b)").
+    var sizeAndTag: String {
+        let parts = [formattedSize, tag.map { "(\($0))" }].compactMap { $0 }
+        return parts.joined(separator: " ")
+    }
+
     let size: Int?
     let digest: String?
     let details: OllamaModelDetails?
