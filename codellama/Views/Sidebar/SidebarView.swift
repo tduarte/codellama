@@ -14,6 +14,24 @@ struct SidebarView: View {
     @Bindable var chatViewModel: ChatViewModel
 
     var body: some View {
+        conversationList
+            .navigationTitle("Conversations")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        chatViewModel.createConversation(model: appState.selectedModel)
+                    } label: {
+                        Label("New Conversation", systemImage: "plus")
+                    }
+                    .keyboardShortcut("n", modifiers: .command)
+                }
+            }
+        .onAppear {
+            chatViewModel.fetchConversations()
+        }
+    }
+
+    private var conversationList: some View {
         List(selection: $chatViewModel.selectedConversation) {
             if !appState.mcpHost.sortedServerStates.isEmpty {
                 Section("Servers") {
@@ -53,20 +71,6 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .searchable(text: $chatViewModel.searchText, placement: .sidebar)
-        .navigationTitle("Conversations")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    chatViewModel.createConversation(model: appState.selectedModel)
-                } label: {
-                    Label("New Conversation", systemImage: "plus")
-                }
-                .keyboardShortcut("n", modifiers: .command)
-            }
-        }
-        .onAppear {
-            chatViewModel.fetchConversations()
-        }
     }
 
     @ViewBuilder
