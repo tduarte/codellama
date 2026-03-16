@@ -125,6 +125,7 @@ macOS SwiftUI app (MVVM + SwiftData) for chatting with local Ollama models with 
 - This is a **SwiftUI-first** project. Build and modify UI in SwiftUI views and view models.
 - Do not treat this as an AppKit UI codebase.
 - Use AppKit only for macOS-specific integrations where SwiftUI has no equivalent (for example, `NSSavePanel` or `NSOpenPanel`).
+- If a proposed fix would require introducing AppKit, an AppKit bridge, or `NSViewRepresentable` for UI behavior, stop and ask the user to confirm before making edits.
 
 ### Entry Point & Lifecycle
 

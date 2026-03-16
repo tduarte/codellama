@@ -132,8 +132,10 @@ struct ConversationEmptyStateView: View {
                                 .frame(width: min(max(width * 0.42, 240), 340))
                         }
                     }
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 10)
                 }
+                .scrollClipDisabled()
             }
         }
         .frame(maxWidth: 1100)
