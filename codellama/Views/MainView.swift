@@ -391,24 +391,3 @@ private struct LaunchConversationView: View {
         )
     }
 }
-
-#Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(
-        for: Conversation.self, ChatMessage.self, MCPServerConfig.self, Skill.self,
-        configurations: config
-    )
-    let appState = AppState.preview
-    let chatViewModel = ChatViewModel(modelContext: container.mainContext)
-    let skillViewModel = SkillViewModel(modelContext: container.mainContext)
-    let agentViewModel = AgentViewModel(
-        ollamaClient: OllamaClient(),
-        mcpHost: appState.mcpHost,
-        modelContext: container.mainContext,
-        contextIndexManager: appState.contextIndexManager
-    )
-    return MainView(chatViewModel: chatViewModel, agentViewModel: agentViewModel, skillViewModel: skillViewModel)
-        .environment(appState)
-        .modelContainer(container)
-        .frame(width: 900, height: 620)
-}

@@ -29,12 +29,3 @@ struct SettingsView: View {
         .frame(minWidth: 760, idealWidth: 860, minHeight: 620, idealHeight: 680)
     }
 }
-
-#Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Skill.self, MCPServerConfig.self, configurations: config)
-    let skillViewModel = SkillViewModel(modelContext: container.mainContext)
-    SettingsView(skillViewModel: skillViewModel)
-        .environment(AppState.preview)
-        .modelContainer(container)
-}

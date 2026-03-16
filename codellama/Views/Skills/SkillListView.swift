@@ -173,40 +173,4 @@ struct SkillListView: View {
             }
         )
     }
-
-}
-
-#Preview("Empty") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Skill.self, configurations: config)
-    let skillViewModel = SkillViewModel(modelContext: container.mainContext)
-    SkillListView(skillViewModel: skillViewModel, isSettingsContext: true)
-        .environment(AppState.preview)
-        .modelContainer(container)
-        .frame(width: 780, height: 480)
-}
-
-#Preview("With Skills") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Skill.self, configurations: config)
-
-    let skill1 = Skill(name: "Refactor Function",
-                       descriptionText: "Reads a Swift file and rewrites a function with improved clarity.",
-                       toolSequence: [
-                           ToolCall(id: "c1", serverName: "filesystem", toolName: "read_file",
-                                    arguments: ["path": "/tmp/file.swift"])
-                       ])
-    let skill2 = Skill(name: "Summarize Repo",
-                       descriptionText: "Lists files and summarizes the project structure.")
-    container.mainContext.insert(skill1)
-    container.mainContext.insert(skill2)
-
-    let skillViewModel = SkillViewModel(modelContext: container.mainContext)
-    skillViewModel.skills = [skill1, skill2]
-    skillViewModel.selectedSkill = skill1
-
-    return SkillListView(skillViewModel: skillViewModel, isSettingsContext: true)
-        .environment(AppState.preview)
-        .modelContainer(container)
-        .frame(width: 780, height: 480)
 }

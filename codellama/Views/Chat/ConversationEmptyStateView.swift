@@ -197,22 +197,3 @@ private struct StarterCardHeightPreferenceKey: PreferenceKey {
         value = max(value, nextValue())
     }
 }
-
-#Preview("Conversation Empty State") {
-    @Previewable @State var selectedModel = "llama3.1:8b"
-
-    ConversationEmptyStateView(
-        selectedModel: selectedModel,
-        availableModels: [
-            OllamaModel(name: "llama3.1:8b", modifiedAt: nil, size: nil, digest: nil, details: nil),
-            OllamaModel(name: "qwen2.5-coder:14b", modifiedAt: nil, size: nil, digest: nil, details: nil),
-            OllamaModel(name: "gemma3:12b", modifiedAt: nil, size: nil, digest: nil, details: nil)
-        ],
-        isCurrentModelAvailable: true,
-        modelSelection: $selectedModel,
-        starters: Array(ConversationStarter.all.prefix(3)),
-        onStarterSelected: { _ in },
-        onExploreMore: {}
-    )
-    .frame(width: 1100, height: 760)
-}

@@ -175,33 +175,3 @@ struct MessageBubble: View {
         return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 }
-
-#Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: ChatMessage.self, Conversation.self, configurations: config)
-
-    let userMsg = ChatMessage(role: "user", content: "What is the time complexity of quicksort?")
-    let assistantMsg = ChatMessage(
-        role: "assistant",
-        content: "Quicksort has **O(n log n)** average complexity.\n\n```swift\nfunc quicksort(_ arr: [Int]) -> [Int] {\n    guard arr.count > 1 else { return arr }\n    let pivot = arr[arr.count / 2]\n    return quicksort(arr.filter { $0 < pivot })\n        + arr.filter { $0 == pivot }\n        + quicksort(arr.filter { $0 > pivot })\n}\n```"
-    )
-    let streamingMsg = ChatMessage(role: "assistant", content: "Thinking…", isStreaming: true)
-    let systemMsg = ChatMessage(role: "system", content: "You are a helpful assistant.")
-
-    container.mainContext.insert(userMsg)
-    container.mainContext.insert(assistantMsg)
-    container.mainContext.insert(streamingMsg)
-    container.mainContext.insert(systemMsg)
-
-    return ScrollView {
-        VStack(spacing: 12) {
-            MessageBubble(message: systemMsg)
-            MessageBubble(message: userMsg)
-            MessageBubble(message: assistantMsg)
-            MessageBubble(message: streamingMsg)
-        }
-        .padding()
-    }
-    .frame(width: 620, height: 520)
-    .modelContainer(container)
-}
