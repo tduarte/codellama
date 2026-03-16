@@ -8,10 +8,6 @@
 import SwiftUI
 
 struct ConversationEmptyStateView: View {
-    let selectedModel: String
-    let availableModels: [OllamaModel]
-    let isCurrentModelAvailable: Bool
-    let modelSelection: Binding<String>
     let starters: [ConversationStarter]
     let onStarterSelected: (ConversationStarter) -> Void
     let onExploreMore: () -> Void
@@ -19,119 +15,68 @@ struct ConversationEmptyStateView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                Spacer(minLength: max(48, geometry.size.height * 0.12))
+                Spacer(minLength: max(AppSpacing.xl, geometry.size.height * 0.12))
 
                 hero
 
-                Spacer(minLength: max(48, geometry.size.height * 0.14))
+                Spacer(minLength: max(AppSpacing.xl, geometry.size.height * 0.14))
 
                 starterSection(width: geometry.size.width)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 28)
-            .padding(.top, 24)
-            .padding(.bottom, 20)
-            .background(alignment: .top) {
-                backgroundGlow
-            }
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.top, AppSpacing.xl)
+            .padding(.bottom, AppSpacing.lg)
         }
-    }
-
-    private var backgroundGlow: some View {
-        ZStack {
-            Circle()
-                .fill(Color.accentColor.opacity(0.08))
-                .frame(width: 320, height: 320)
-                .blur(radius: 70)
-                .offset(x: -160, y: -100)
-
-            Circle()
-                .fill(Color.primary.opacity(0.04))
-                .frame(width: 280, height: 280)
-                .blur(radius: 80)
-                .offset(x: 180, y: 20)
-        }
-        .allowsHitTesting(false)
     }
 
     private var hero: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: AppSpacing.md) {
             Text("How can I help?")
-                .font(.system(size: 44, weight: .semibold, design: .rounded))
+                .font(.largeTitle.weight(.semibold))
                 .multilineTextAlignment(.center)
 
-            modelMenu
-
-            Text("Choose a model, start with a prompt, or pick a suggestion to get moving.")
+            Text("Start with a prompt below, or pick a suggestion to get going.")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 540)
+                .frame(maxWidth: 480)
         }
         .frame(maxWidth: .infinity)
     }
 
-    private var modelMenu: some View {
-        Menu {
-            if !isCurrentModelAvailable {
-                Text("\(selectedModel) (Unavailable)")
-            }
-
-            ForEach(availableModels) { model in
-                Button {
-                    modelSelection.wrappedValue = model.name
-                } label: {
-                    Text(model.displayName)
-                    Text(model.name)
-                    if model.name == selectedModel {
-                        Image(systemName: "checkmark")
-                    }
-                }
-            }
-        } label: {
-            Text(selectedModelDisplayName)
-                .font(.system(size: 28, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .padding(.horizontal, 22)
-                .padding(.vertical, 12)
-                .glassEffect(.regular, in: .capsule)
-        }
-        .menuStyle(.borderlessButton)
-    }
-
     @ViewBuilder
     private func starterSection(width: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Try one of these")
                     .font(.headline)
                     .foregroundStyle(.secondary)
 
-                Spacer(minLength: 16)
+                Spacer(minLength: AppSpacing.lg)
 
                 Button("Explore more", action: onExploreMore)
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, AppSpacing.xs)
 
             if width >= 1100 {
-                HStack(alignment: .top, spacing: 16) {
+                HStack(alignment: .top, spacing: AppSpacing.lg) {
                     ForEach(starters) { starter in
                         starterCard(starter)
                     }
                 }
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 16) {
+                    HStack(alignment: .top, spacing: AppSpacing.lg) {
                         ForEach(starters) { starter in
                             starterCard(starter)
                                 .frame(width: min(max(width * 0.42, 240), 340))
                         }
                     }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, AppSpacing.xs)
+                    .padding(.vertical, AppSpacing.sm)
                 }
                 .scrollClipDisabled()
             }
@@ -143,7 +88,7 @@ struct ConversationEmptyStateView: View {
         Button {
             onStarterSelected(starter)
         } label: {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: AppSpacing.lg) {
                 Image(systemName: starter.systemImage)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(.tint)
@@ -164,14 +109,10 @@ struct ConversationEmptyStateView: View {
                     .layoutPriority(1)
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(22)
-            .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .glassEffect(.regular, in: .rect(cornerRadius: 28))
+            .padding(AppSpacing.xl - 2)
+            .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+            .glassEffect(.regular, in: .rect(cornerRadius: AppRadius.card))
         }
         .buttonStyle(.plain)
-    }
-
-    private var selectedModelDisplayName: String {
-        availableModels.first(where: { $0.name == selectedModel })?.displayName ?? selectedModel
     }
 }

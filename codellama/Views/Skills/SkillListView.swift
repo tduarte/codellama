@@ -276,7 +276,7 @@ private struct SkillDetailView: View {
                         .font(.subheadline.weight(.semibold))
 
                     Text(file.content)
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.codeCaption)
                         .textSelection(.enabled)
                         .padding(10)
                         .background(

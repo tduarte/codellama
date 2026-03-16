@@ -74,18 +74,23 @@ struct MCPServerSettingsView: View {
                     .onDelete(perform: deleteServers)
                 }
                 .listStyle(.inset)
-                .overlay(alignment: .bottomTrailing) {
-                    Button {
-                        prepareForAdd()
-                        showingAddSheet = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 28, height: 28)
-                            .background(.regularMaterial, in: Circle())
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: 0) {
+                        Divider()
+                        HStack {
+                            Button {
+                                prepareForAdd()
+                                showingAddSheet = true
+                            } label: {
+                                Label("Add Server", systemImage: "plus")
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            Spacer()
+                        }
+                        .background(.bar)
                     }
-                    .buttonStyle(.plain)
-                    .padding(12)
                 }
             }
         }
@@ -182,6 +187,7 @@ struct MCPServerSettingsView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .disabled(!server.isEnabled)
+            .help("Restart \(server.name)")
 
             Button {
                 prepareForEdit(server)
@@ -191,6 +197,7 @@ struct MCPServerSettingsView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .help("Edit \(server.name)")
         }
         .padding(.vertical, 1)
     }

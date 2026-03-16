@@ -12,31 +12,28 @@ struct SidebarView: View {
     @Environment(AppState.self) private var appState
 
     @Bindable var chatViewModel: ChatViewModel
+    @Query(sort: \MCPServerConfig.createdAt) private var servers: [MCPServerConfig]
 
     var body: some View {
         conversationList
             .navigationTitle("Conversations")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        chatViewModel.createConversation(model: appState.selectedModel)
-                    } label: {
-                        Label("New Conversation", systemImage: "plus")
-                    }
-                    .keyboardShortcut("n", modifiers: .command)
-                }
+            .onAppear {
+                chatViewModel.fetchConversations()
             }
-        .onAppear {
-            chatViewModel.fetchConversations()
-        }
     }
 
     private var conversationList: some View {
         List(selection: $chatViewModel.selectedConversation) {
-            if !appState.mcpHost.sortedServerStates.isEmpty {
+            if !servers.isEmpty {
                 Section("Servers") {
-                    ForEach(appState.mcpHost.sortedServerStates) { state in
-                        serverRow(state)
+                    if appState.mcpHost.sortedServerStates.isEmpty {
+                        Text("No servers connected")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(appState.mcpHost.sortedServerStates) { state in
+                            serverRow(state)
+                        }
                     }
                 }
             }

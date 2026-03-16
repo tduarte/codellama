@@ -31,9 +31,6 @@ struct OllamaSettingsView: View {
     @State private var isFolderImporterPresented: Bool = false
     @State private var isCancellingEmbeddingModelPull: Bool = false
 
-    private let settingsLabelWidth: CGFloat = 220
-    private let controlColumnWidth: CGFloat = 420
-
     enum ConnectionTestResult {
         case success
         case failure(String)
@@ -42,13 +39,12 @@ struct OllamaSettingsView: View {
     var body: some View {
         Form {
             Section("Ollama Server") {
-                settingsRow("Host URL") {
+                LabeledContent("Host URL") {
                     TextField("http://localhost:11434", text: $host)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: controlColumnWidth)
                 }
 
-                settingsRow("Embedding Model", alignment: .top) {
+                LabeledContent("Embedding Model") {
                     VStack(alignment: .trailing, spacing: 8) {
                         embeddingModelPicker
 
@@ -65,7 +61,6 @@ struct OllamaSettingsView: View {
                                             .controlSize(.small)
                                     }
                                 }
-                                .frame(width: controlColumnWidth, alignment: .trailing)
 
                                 HStack(spacing: 8) {
                                     Text(pullProgress.status)
@@ -84,7 +79,6 @@ struct OllamaSettingsView: View {
                                     .controlSize(.small)
                                     .accessibilityLabel("Cancel Download")
                                 }
-                                .frame(width: controlColumnWidth, alignment: .trailing)
                             }
                         }
 
@@ -93,12 +87,11 @@ struct OllamaSettingsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.red)
                                 .fixedSize(horizontal: false, vertical: true)
-                                .frame(width: controlColumnWidth, alignment: .leading)
                         }
                     }
                 }
 
-                settingsRow("Connection") {
+                LabeledContent("Connection") {
                     HStack(spacing: 10) {
                         Button("Test Connection") {
                             testConnection()
@@ -127,11 +120,10 @@ struct OllamaSettingsView: View {
             }
 
             Section("Chat Defaults") {
-                settingsRow("Default Model") {
+                LabeledContent("Default Model") {
                     if appState.availableModels.isEmpty {
                         TextField("Model", text: selectedModelBinding)
                             .textFieldStyle(.roundedBorder)
-                            .frame(width: 240)
                     } else {
                         Picker("Default Model", selection: selectedModelBinding) {
                             if !appState.availableModels.contains(where: { $0.name == appState.selectedModel }) {
@@ -144,11 +136,10 @@ struct OllamaSettingsView: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(width: 240, alignment: .trailing)
                     }
                 }
 
-                settingsRow("Stream responses") {
+                LabeledContent("Stream Responses") {
                     Toggle("", isOn: $streamResponses)
                         .labelsHidden()
                 }
@@ -491,7 +482,6 @@ struct OllamaSettingsView: View {
             }
         }
         .labelsHidden()
-        .frame(width: controlColumnWidth, alignment: .trailing)
         .disabled(isPullingEmbeddingModel)
     }
 
@@ -538,22 +528,6 @@ struct OllamaSettingsView: View {
                 selectEmbeddingOption(option)
             }
         )
-    }
-
-    private func settingsRow<Content: View>(
-        _ label: String,
-        alignment: VerticalAlignment = .center,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        HStack(alignment: alignment, spacing: 20) {
-            Text(label)
-                .frame(width: settingsLabelWidth, alignment: .leading)
-
-            Spacer(minLength: 12)
-
-            content()
-                .frame(width: controlColumnWidth, alignment: .trailing)
-        }
     }
 
     private var selectedModelBinding: Binding<String> {

@@ -141,11 +141,13 @@ struct MainView: View {
                 if let task = agentViewModel.currentTask {
                     PlanTimelineView(
                         task: task,
+                        isRunning: agentViewModel.isRunning,
                         onApprove: { Task { await agentViewModel.approve() } },
                         onCancel: { agentViewModel.cancel() },
                         onClose: { agentViewModel.dismissTask() }
                     )
                     .frame(minWidth: 500, minHeight: 400)
+                    .presentationDetents([.medium, .large])
                 }
             }
             .interactiveDismissDisabled(agentViewModel.isRunning)
@@ -334,10 +336,6 @@ private struct LaunchConversationView: View {
 
     var body: some View {
         ConversationEmptyStateView(
-            selectedModel: appState.selectedModel,
-            availableModels: appState.availableModels,
-            isCurrentModelAvailable: isCurrentModelAvailable,
-            modelSelection: launchModelSelection,
             starters: chatViewModel.starters(for: nil),
             onStarterSelected: { starter in
                 chatViewModel.applyStarter(starter, appState: appState)

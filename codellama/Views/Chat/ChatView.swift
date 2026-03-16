@@ -45,10 +45,6 @@ struct ChatView: View {
     private var content: some View {
         if sortedMessages.isEmpty {
             ConversationEmptyStateView(
-                selectedModel: conversation.model,
-                availableModels: appState.availableModels,
-                isCurrentModelAvailable: isCurrentModelAvailable,
-                modelSelection: modelSelection,
                 starters: chatViewModel.starters(for: conversation),
                 onStarterSelected: { starter in
                     chatViewModel.applyStarter(starter, appState: appState)
