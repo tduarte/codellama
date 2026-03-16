@@ -37,6 +37,7 @@ struct CommandPaletteView: View {
 
     @FocusState private var isQueryFocused: Bool
     @State private var query: String = ""
+    @State private var selectedIndex: Int = 0
     private let maxRowSubtitleCharacters = 160
 
     private var filteredItems: [CommandPaletteItem] {
@@ -50,9 +51,22 @@ struct CommandPaletteView: View {
                 .focused($isQueryFocused)
                 .padding(16)
                 .onSubmit {
-                    if let first = filteredItems.first {
+                    if selectedIndex < filteredItems.count {
+                        run(filteredItems[selectedIndex])
+                    } else if let first = filteredItems.first {
                         run(first)
                     }
+                }
+                .onKeyPress(.upArrow) {
+                    selectedIndex = max(0, selectedIndex - 1)
+                    return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    selectedIndex = min(filteredItems.count - 1, selectedIndex + 1)
+                    return .handled
+                }
+                .onChange(of: query) {
+                    selectedIndex = 0
                 }
 
             Divider()
@@ -71,7 +85,7 @@ struct CommandPaletteView: View {
                             Button {
                                 run(item)
                             } label: {
-                                row(for: item, isSuggested: index == 0)
+                                row(for: item, isSelected: index == selectedIndex)
                             }
                             .buttonStyle(.plain)
 
@@ -113,11 +127,12 @@ struct CommandPaletteView: View {
         .onAppear {
             query = ""
             isQueryFocused = true
+            selectedIndex = 0
         }
     }
 
     @ViewBuilder
-    private func row(for item: CommandPaletteItem, isSuggested: Bool) -> some View {
+    private func row(for item: CommandPaletteItem, isSelected: Bool) -> some View {
         HStack(spacing: 12) {
             Image(systemName: item.systemImage)
                 .font(.body.weight(.semibold))
@@ -132,7 +147,7 @@ struct CommandPaletteView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
 
-                    if isSuggested {
+                    if isSelected {
                         Text("Top Match")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.tint)
@@ -163,7 +178,7 @@ struct CommandPaletteView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .frame(minHeight: 64, maxHeight: 78)
-        .background(isSuggested ? Color.accentColor.opacity(0.06) : Color.clear)
+        .background(isSelected ? Color.accentColor.opacity(0.06) : Color.clear)
     }
 
     private func sanitizedSubtitle(_ raw: String) -> String {

@@ -13,6 +13,7 @@ import SwiftUI
 struct PlanTimelineView: View {
 
     let task: AgentTask
+    var isRunning: Bool = false
     var onApprove: () -> Void
     var onCancel: () -> Void
     var onClose: () -> Void
@@ -22,9 +23,17 @@ struct PlanTimelineView: View {
 
             // MARK: Header
             VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                    .font(.title2)
-                    .bold()
+                HStack(alignment: .firstTextBaseline) {
+                    Text(title)
+                        .font(.title2)
+                        .bold()
+
+                    if isRunning {
+                        ProgressView()
+                            .controlSize(.small)
+                            .padding(.leading, 4)
+                    }
+                }
 
                 Text(task.prompt)
                     .font(.subheadline)

@@ -50,31 +50,33 @@ struct SkillListView: View {
 
     private var sidebarPane: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Skills")
-                    .font(.title2.weight(.semibold))
-                Spacer()
-                Button {
-                    skillViewModel.refreshSkills()
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .modifier(RefreshButtonStyle(isProminent: isSettingsContext))
-
-                if let onDismiss {
+            if !isSettingsContext {
+                HStack {
+                    Text("Skills")
+                        .font(.title2.weight(.semibold))
+                    Spacer()
                     Button {
-                        onDismiss()
+                        skillViewModel.refreshSkills()
                     } label: {
-                        Image(systemName: "xmark")
+                        Label("Refresh", systemImage: "arrow.clockwise")
                     }
-                    .buttonStyle(.borderless)
-                    .help("Close")
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+                    .buttonStyle(.bordered)
 
-            Divider()
+                    if let onDismiss {
+                        Button {
+                            onDismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Close")
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                Divider()
+            }
 
             ZStack {
                 List(selection: selectionBinding) {
@@ -123,6 +125,23 @@ struct SkillListView: View {
                     )
                 }
             }
+
+            Divider()
+
+            HStack(spacing: 0) {
+                Button {
+                    skillViewModel.refreshSkills()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .frame(width: 26, height: 22)
+                }
+                .buttonStyle(.borderless)
+                .help("Refresh Skills")
+
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
         }
         .frame(minWidth: 320, idealWidth: 340)
         .background(.regularMaterial)
@@ -180,19 +199,6 @@ struct SkillListView: View {
                 }
             }
         )
-    }
-}
-
-private struct RefreshButtonStyle: ViewModifier {
-    let isProminent: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if isProminent {
-            content.buttonStyle(.borderedProminent)
-        } else {
-            content.buttonStyle(.bordered)
-        }
     }
 }
 
@@ -276,7 +282,7 @@ private struct SkillDetailView: View {
                         .font(.subheadline.weight(.semibold))
 
                     Text(file.content)
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.codeCaption)
                         .textSelection(.enabled)
                         .padding(10)
                         .background(

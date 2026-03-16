@@ -140,6 +140,12 @@ struct InstalledSkillLoader {
                 directoryURL: homeDirectory.appendingPathComponent(".claude/skills", isDirectory: true)
             )
         )
+        roots.append(
+            InstalledSkillRoot(
+                source: .homeAgents,
+                directoryURL: homeDirectory.appendingPathComponent(".agents/skills", isDirectory: true)
+            )
+        )
 
         return roots
     }

@@ -49,7 +49,7 @@ struct MCPServerFormView: View {
                         .font(.subheadline.weight(.semibold))
 
                     TextEditor(text: $argumentsText)
-                        .font(.system(.body, design: .monospaced))
+                        .font(.codeBody)
                         .frame(minHeight: 110)
                         .scrollContentBackground(.hidden)
                         .padding(8)

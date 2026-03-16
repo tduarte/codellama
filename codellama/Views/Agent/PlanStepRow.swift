@@ -44,23 +44,32 @@ struct PlanStepRow: View {
 
     @ViewBuilder
     private var stepStatusIcon: some View {
-        switch step.status {
-        case .pending:
-            Image(systemName: "clock")
-                .foregroundStyle(.secondary)
-        case .running:
-            ProgressView()
-                .scaleEffect(0.7)
-                .frame(width: 16, height: 16)
-        case .succeeded:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        case .failed:
-            Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(.red)
-        case .skipped:
-            Image(systemName: "minus.circle")
-                .foregroundStyle(.secondary)
+        Group {
+            switch step.status {
+            case .pending:
+                Image(systemName: "clock")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Pending")
+            case .running:
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .frame(width: 16, height: 16)
+                    .accessibilityLabel("Running")
+            case .succeeded:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .accessibilityLabel("Succeeded")
+            case .failed:
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+                    .accessibilityLabel("Failed")
+            case .skipped:
+                Image(systemName: "minus.circle")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Skipped")
+            }
         }
+        .transition(.scale.combined(with: .opacity))
+        .animation(.spring(duration: 0.2), value: step.status)
     }
 }

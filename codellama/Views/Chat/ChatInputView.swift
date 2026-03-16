@@ -66,16 +66,19 @@ struct ChatInputView: View {
             .frame(height: 8)
             .overlay {
                 Capsule()
-                    .fill(.separator)
-                    .frame(width: 36, height: 4)
+                    .fill(.secondary.opacity(0.3))
+                    .frame(width: 36, height: 5)
             }
             .contentShape(Rectangle())
+            .accessibilityLabel("Resize input area")
             .gesture(
                 DragGesture()
                     .onChanged { value in
                         // Dragging up (negative translation) increases height
                         let newHeight = editorHeight - value.translation.height
-                        editorHeight = min(max(newHeight, minEditorHeight), maxEditorHeight)
+                        withAnimation(.linear(duration: 0.05)) {
+                            editorHeight = min(max(newHeight, minEditorHeight), maxEditorHeight)
+                        }
                     }
             )
             .onContinuousHover { phase in

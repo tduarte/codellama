@@ -25,7 +25,6 @@ struct SettingsView: View {
                 SkillListView(skillViewModel: skillViewModel, isSettingsContext: true)
             }
         }
-        .scenePadding()
         .frame(minWidth: 760, idealWidth: 860, minHeight: 620, idealHeight: 680)
     }
 }
