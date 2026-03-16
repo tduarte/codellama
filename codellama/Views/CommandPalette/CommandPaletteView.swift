@@ -79,24 +79,33 @@ struct CommandPaletteView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                            Button {
-                                run(item)
-                            } label: {
-                                row(for: item, isSelected: index == selectedIndex)
-                            }
-                            .buttonStyle(.plain)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
+                                Button {
+                                    run(item)
+                                } label: {
+                                    row(for: item, isSelected: index == selectedIndex)
+                                }
+                                .buttonStyle(.plain)
+                                .id(item.id)
 
-                            if index < filteredItems.count - 1 {
-                                Divider()
+                                if index < filteredItems.count - 1 {
+                                    Divider()
+                                }
                             }
                         }
+                        .padding(.vertical, 6)
                     }
-                    .padding(.vertical, 6)
+                    .frame(maxHeight: 360)
+                    .onChange(of: selectedIndex) { _, newIndex in
+                        guard newIndex < filteredItems.count else { return }
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            proxy.scrollTo(filteredItems[newIndex].id, anchor: .center)
+                        }
+                    }
                 }
-                .frame(maxHeight: 360)
             }
 
             Divider()
