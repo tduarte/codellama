@@ -50,6 +50,7 @@ enum InstalledSkillSource: String, CaseIterable, Hashable, Sendable {
     case codellamaConfig
     case homeCodex
     case homeClaude
+    case homeAgents
 
     var label: String {
         switch self {
@@ -63,6 +64,8 @@ enum InstalledSkillSource: String, CaseIterable, Hashable, Sendable {
             return "~/.codex"
         case .homeClaude:
             return "~/.claude"
+        case .homeAgents:
+            return "~/.agents"
         }
     }
 }
