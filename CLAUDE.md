@@ -119,12 +119,6 @@ Always open the `.xcodeproj` from the current worktree, not from another checkou
 
 macOS SwiftUI app (MVVM + SwiftData) for chatting with local Ollama models with agentic MCP tool-calling capabilities.
 
-### UI Framework Guidance
-
-- This is a **SwiftUI-first** project. Build and modify UI in SwiftUI views and view models.
-- Do not treat this as an AppKit UI codebase.
-- Use AppKit only for macOS-specific integrations where SwiftUI has no equivalent (for example, `NSSavePanel` or `NSOpenPanel`).
-
 ### Entry Point & Lifecycle
 
 `codellamaApp.swift` → creates `ModelContainer` (schema: `Conversation`, `ChatMessage`, `MCPServerConfig`) → initializes `AppState` → passes `modelContext` to `AppState.startup()` → renders `MainView`.
