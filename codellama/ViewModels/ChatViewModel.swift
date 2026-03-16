@@ -230,6 +230,17 @@ final class ChatViewModel {
     }
 
     func send(appState: AppState) async {
+        // Intercept slash commands before sending to Ollama.
+        // /skill is excluded — it falls through to AgentLoop in agent mode.
+        let rawInput = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if rawInput.hasPrefix("/") {
+            if let (command, _) = SlashCommandRegistry.parse(input: rawInput) {
+                inputText = ""
+                await executeMetaCommand(command, appState: appState)
+                return
+            }
+        }
+
         let attachments = pendingAttachments
         let prompt = composedPrompt(using: attachments)
         guard !prompt.isEmpty else { return }
@@ -497,6 +508,75 @@ final class ChatViewModel {
                 // Title generation is best-effort; ignore errors
             }
         }
+    }
+
+    // MARK: - Slash Command Execution
+
+    private func executeMetaCommand(_ command: SlashCommand, appState: AppState) async {
+        switch command.action {
+        case .stopGeneration:
+            stopGenerating()
+
+        case .setSystemPrompt(let text):
+            let conversation = selectedConversation ?? createConversation(model: appState.selectedModel)
+            if let text {
+                conversation.systemPrompt = text
+                try? modelContext.save()
+            } else {
+                let current = conversation.systemPrompt ?? Defaults[.systemPrompt]
+                let message = current.isEmpty
+                    ? "No system prompt is set for this conversation."
+                    : "**Current system prompt:**\n\n\(current)"
+                injectSystemMessage(message, in: conversation)
+            }
+
+        case .listTools:
+            let conversation = selectedConversation ?? createConversation(model: appState.selectedModel)
+            let tools = appState.mcpHost.allMCPTools
+            if tools.isEmpty {
+                injectSystemMessage("No MCP tools are currently connected.", in: conversation)
+            } else {
+                var lines = ["## Available MCP Tools", ""]
+                let grouped = Dictionary(grouping: tools, by: \.serverName)
+                for serverName in grouped.keys.sorted() {
+                    let serverTools = grouped[serverName]!
+                    lines.append("**\(serverName)** (\(serverTools.count) tool\(serverTools.count == 1 ? "" : "s"))")
+                    for tool in serverTools.sorted(by: { $0.toolName < $1.toolName }) {
+                        let desc = tool.description.isEmpty ? "" : " — \(tool.description)"
+                        lines.append("- `\(tool.toolName)`\(desc)")
+                    }
+                    lines.append("")
+                }
+                injectSystemMessage(lines.joined(separator: "\n"), in: conversation)
+            }
+
+        case .listMCPServers:
+            let conversation = selectedConversation ?? createConversation(model: appState.selectedModel)
+            let states = appState.mcpHost.sortedServerStates
+            if states.isEmpty {
+                injectSystemMessage("No MCP servers are configured.", in: conversation)
+            } else {
+                var lines = ["## Connected MCP Servers", ""]
+                for state in states {
+                    let icon = state.lifecycle == .connected ? "✓" : "✗"
+                    lines.append("**\(icon) \(state.serverName)** — \(state.statusSummary)")
+                }
+                injectSystemMessage(lines.joined(separator: "\n"), in: conversation)
+            }
+
+        case .showHelp:
+            let conversation = selectedConversation ?? createConversation(model: appState.selectedModel)
+            injectSystemMessage(SlashCommandRegistry.helpMarkdown(), in: conversation)
+        }
+    }
+
+    private func injectSystemMessage(_ content: String, in conversation: Conversation) {
+        let message = ChatMessage(role: "assistant", content: content)
+        message.conversation = conversation
+        conversation.messages.append(message)
+        modelContext.insert(message)
+        conversation.modifiedAt = Date.now
+        try? modelContext.save()
     }
 
     // MARK: - Helpers
