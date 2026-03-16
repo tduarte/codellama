@@ -20,6 +20,7 @@ struct ChatInputView: View {
     var availableModels: [OllamaModel]
     var isCurrentModelAvailable: Bool
     var modelSelection: Binding<String>
+    var toolCapableModelNames: Set<String> = []
     var onSendChat: () -> Void
     var onSendAgent: () -> Void
     var onStop: () -> Void
@@ -198,8 +199,8 @@ struct ChatInputView: View {
         .disabled(isBusy)
     }
 
-    private var selectedModelDisplayName: String {
-        availableModels.first(where: { $0.name == selectedModel })?.displayName ?? selectedModel
+    private var selectedOllamaModel: OllamaModel? {
+        availableModels.first(where: { $0.name == selectedModel })
     }
 
     private var modelPickerButton: some View {
@@ -208,23 +209,48 @@ struct ChatInputView: View {
                 Text("\(selectedModel) (Unavailable)")
             }
 
-            ForEach(availableModels) { model in
+            ForEach(availableModels.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }) { model in
                 Button {
                     modelSelection.wrappedValue = model.name
                 } label: {
-                    Text(model.displayName)
-                    Text(model.name)
-                    if model.name == selectedModel {
-                        Image(systemName: "checkmark")
+                    let toolCapable = toolCapableModelNames.contains(model.name)
+                    Label {
+                        Text(model.displayName)
+                    } icon: {
+                        if toolCapable {
+                            Image(systemName: "bolt.fill")
+                        }
+                    }
+                    let subtitle = model.sizeAndTag
+                    if !subtitle.isEmpty {
+                        Text(subtitle)
                     }
                 }
             }
         } label: {
-            Text(selectedModelDisplayName)
-                .font(.caption)
-                .lineLimit(1)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+            let model = selectedOllamaModel
+            let toolCapable = toolCapableModelNames.contains(selectedModel)
+            VStack(alignment: .trailing, spacing: 1) {
+                HStack(spacing: 3) {
+                    if toolCapable {
+                        Image(systemName: "bolt.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.yellow)
+                    }
+                    Text(model?.displayName ?? selectedModel)
+                        .font(.caption)
+                        .lineLimit(1)
+                }
+                let subtitle = model?.sizeAndTag ?? ""
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.trailing)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()

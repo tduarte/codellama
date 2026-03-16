@@ -38,6 +38,23 @@ final class AppState {
     var isCommandPalettePresented: Bool = false
     private var modelCapabilities: [String: Set<String>] = [:]
 
+    /// Names of models that advertise tool/function-calling support.
+    var toolCapableModelNames: Set<String> {
+        Set(modelCapabilities.compactMap { name, caps in caps.contains("tools") ? name : nil })
+    }
+
+    /// Available models with embedding-only models removed.
+    var chatModels: [OllamaModel] {
+        let embeddingBaseNames: Set<String> = Set(
+            EmbeddingModelOption.curated.compactMap(\.storageValue) +
+            [Defaults[.embeddingModel]].compactMap { $0 }
+        )
+        return availableModels.filter { model in
+            let baseName = String(model.name.split(separator: ":").first ?? Substring(model.name))
+            return !embeddingBaseNames.contains(baseName)
+        }
+    }
+
     func startup(modelContext: ModelContext? = nil) async {
         status = .checking
 
@@ -172,6 +189,21 @@ final class AppState {
         if !response.models.contains(where: { $0.name == selectedModel }),
            let first = response.models.first {
             selectedModel = first.name
+        }
+
+        // Fetch capabilities for all models in the background so the UI can
+        // show tool-support indicators without blocking startup.
+        let models = response.models
+        Task {
+            for model in models {
+                guard modelCapabilities[model.name] == nil else { continue }
+                do {
+                    let show = try await client.showModel(named: model.name)
+                    modelCapabilities[model.name] = Set((show.capabilities ?? []).map { $0.lowercased() })
+                } catch {
+                    modelCapabilities[model.name] = []
+                }
+            }
         }
     }
 }

@@ -379,9 +379,10 @@ private struct LaunchConversationView: View {
             isProcessingDrop: chatViewModel.isProcessingAttachmentDrop,
             isDropTargeted: isTargetingFileDrop,
             selectedModel: appState.selectedModel,
-            availableModels: appState.availableModels,
+            availableModels: appState.chatModels,
             isCurrentModelAvailable: isCurrentModelAvailable,
             modelSelection: launchModelSelection,
+            toolCapableModelNames: appState.toolCapableModelNames,
             onSendChat: {
                 Task { await chatViewModel.send(appState: appState) }
             },
